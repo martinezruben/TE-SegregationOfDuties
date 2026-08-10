@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AreaController;
 use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\ManagedUserController;
@@ -30,6 +31,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->only(['index', 'store', 'update', 'destroy']);
     Route::resource('gestionados', ManagedUserController::class)
         ->parameters(['gestionados' => 'gestionado'])
+        ->only(['index', 'store', 'update', 'destroy']);
+    Route::resource('aplicaciones', ApplicationController::class)
+        ->parameters(['aplicaciones' => 'aplicacion'])
         ->only(['index', 'store', 'update', 'destroy']);
 });
 
