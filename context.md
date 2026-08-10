@@ -72,18 +72,40 @@ El propósito central es **prevenir la asignación de combinaciones de roles que
 
 ## 4. Actores y Roles de la Plataforma
 
-Estos son los roles **de la aplicación** (distintos de los roles de negocio que administra):
+Estos son los roles **de la aplicación** (distintos de los roles de negocio que administra). El sistema es **totalmente RBAC**: los roles no traen permisos "cableados", sino que se componen de **permisos granulares** asignables desde la propia UI (ver §8.5). Los roles de abajo son la **plantilla inicial** (seeders), pero un Administrador puede crear roles nuevos y recomponer permisos en caliente.
 
-| Rol | Responsabilidades |
+| Rol (plantilla) | Perfil | Permisos típicos |
+|---|---|---|
+| **Administrador** | Control total | Todos: gestión de usuarios, roles, permisos, menús, catálogos, matriz y autorizaciones. |
+| **Definidor de Matrices** | Diseña las reglas | `matriz.ver`, `matriz.crear`, `matriz.editar`, `matriz.eliminar`, `matriz.definir`; catálogos de roles/opciones en modo lectura. **No autoriza ni consume accesos.** |
+| **Consultor (solo lectura)** | Solo consulta | `*.ver` sobre los módulos permitidos (foto, matriz, reportes, solicitudes). Ningún permiso de escritura ni de autorización. |
+| **Consultor + Autorizador** | Consulta y aprueba | `*.ver` + `solicitudes.autorizar` (y opcionalmente `matriz.ver`). Consulta todo lo visible y **autoriza** los pasos que le corresponden, pero **no define matrices ni administra el sistema**. |
+| **Gestor de Seguridad** | Autoridad de riesgo | `matriz.*`, `solicitudes.autorizar`, `solicitudes.autorizar_mayor`, reportes. Aprueba criticidad alta y conflictos SoD. |
+| **Owner de Aplicación** | Dueño funcional | `solicitudes.ver`, `solicitudes.autorizar` sobre las aplicaciones que posee. |
+| **Jefe/Supervisor** | Aprobador de equipo | `solicitudes.ver`, `solicitudes.autorizar` (primer paso) sobre su equipo. |
+| **Solicitante** | Origina solicitudes | `solicitudes.ver`, `solicitudes.crear`, `simulador.ver`. |
+| **Auditor** | Cumplimiento | `*.ver` + `bitacora.ver` + `reportes.exportar`. Sin escritura. |
+
+### 4.1 Modelo de Permisos Granulares (RBAC)
+
+La autorización se implementa con **[spatie/laravel-permission](https://spatie.be/docs/laravel-permission)** (roles ↔ permisos ↔ usuarios) y **Policies/Gates** de Laravel para reglas finas por recurso (ej. "solo el owner de *esta* app puede autorizar").
+
+* **Convención de nombres:** cada permiso es `{recurso}.{acción}`. Los **recursos** corresponden a las opciones/módulos del sistema (usuarios, roles, permisos, menus, aplicaciones, matriz, foto, solicitudes, simulador, reportes, bitacora, dashboard).
+* **Acciones estándar** por recurso:
+
+| Acción | Significado |
 |---|---|
-| **Administrador** | Gestiona catálogos, usuarios, matriz SoD y parámetros del sistema. |
-| **Gestor de Seguridad** | Aprueba accesos de criticidad alta; administra reglas SoD; revisa reportes. |
-| **Owner de Aplicación** | Aprueba solicitudes de acceso a las aplicaciones bajo su responsabilidad. |
-| **Jefe/Supervisor** | Aprueba (primer paso) solicitudes de su equipo. |
-| **Solicitante** | Crea solicitudes de acceso para sí mismo o para colaboradores a cargo. |
-| **Auditor (solo lectura)** | Consulta la foto, el historial y los reportes sin poder modificar datos. |
+| `ver` | Ver el módulo/opción. **Controla también la visibilidad en el menú lateral** (§8.6). |
+| `crear` | Crear registros. |
+| `editar` | Modificar registros. |
+| `eliminar` | Eliminar (lógico). |
+| `autorizar` | Aprobar/rechazar un paso de solicitud. |
+| `autorizar_mayor` | Aprobar cambios sensibles (modificación de un rol / definición de matriz) — *autorización mayor* (§8.4). |
+| `definir` | Definir/editar reglas de la matriz SoD. |
+| `exportar` | Exportar reportes. |
 
-La autorización se implementa con **[spatie/laravel-permission](https://spatie.be/docs/laravel-permission)** (roles y permisos) y **Policies/Gates** de Laravel para reglas finas por recurso.
+* **Regla de oro de la UI:** un usuario **solo ve en el sidebar** las opciones para las que tiene el permiso `ver`, y dentro de cada pantalla los botones (crear/editar/eliminar/autorizar) se muestran/ocultan según el permiso correspondiente. La misma verificación se repite en el backend (Policy) — nunca se confía solo en la UI.
+* **Herencia de contexto:** además del permiso, las Policies validan el **ámbito** (p. ej. un Owner solo autoriza solicitudes de sus aplicaciones; un Jefe solo las de su departamento).
 
 ---
 
@@ -168,32 +190,47 @@ El **motor SoD** (`App\Services\SodEvaluator`) es un servicio puro y testeable d
 ### 7.3 Gestión de Solicitudes y Autorizaciones
 
 * **`role_requests`**
-  * `id`, `user_id` (FK — usuario que recibe el rol), `requested_role_id` (FK), `status` (Enum: `pendiente`, `en_aprobacion`, `aprobado`, `rechazado`, `cancelado`), `requester_id` (FK — quien lo solicita), `justification` (texto — motivo de negocio), `has_sod_conflict` (bool), `created_at`
-* **`request_approvals`** — Flujo dinámico de aprobación
-  * `id`, `role_request_id` (FK), `approver_id` (FK), `step_order` (int), `status` (Enum: `pendiente`, `aprobado`, `rechazado`), `comments`, `resolved_at`
-* **`request_sod_findings`** *(nuevo — deja constancia de los conflictos detectados en la solicitud)*
+  * `id`, `user_id` (FK — usuario que recibe el rol), `requested_role_id` (FK, nullable para modificación de rol), `type` (Enum: `asignacion`, `movimiento`, `modificacion_rol`), `payload` (json — detalle del cambio, ej. rol de origen/destino o campos modificados del rol), `status` (Enum: `pendiente`, `en_aprobacion`, `aprobado`, `rechazado`, `cancelado`, `auto_aprobado`), `requester_id` (FK — quien lo solicita), `justification` (texto — motivo de negocio), `has_sod_conflict` (bool), `is_major` (bool — requiere *autorización mayor*), `auto_resolved` (bool — resuelta por reglas automáticas), `created_at`
+* **`request_approvals`** — Flujo dinámico de aprobación (los pasos concretos)
+  * `id`, `role_request_id` (FK), `approver_id` (FK, nullable si el paso se resuelve por rol/ámbito), `approver_role` (string — rol/ámbito requerido, ej. `owner_app`, `jefe`, `seguridad`), `step_order` (int), `status` (Enum: `pendiente`, `aprobado`, `rechazado`, `omitido`), `is_auto` (bool — paso resuelto automáticamente), `comments`, `resolved_at`, `resolved_by` (FK, nullable)
+* **`request_sod_findings`** *(deja constancia de los conflictos detectados en la solicitud)*
   * `id`, `role_request_id` (FK), `conflicting_role_id` (FK), `sod_matrix_id` (FK), `risk_level`
 
-### 7.4 Auditoría y Sistema
+### 7.4 RBAC y Menú Configurable
+
+* **`roles` (RBAC de plataforma — spatie)** *(no confundir con los roles de negocio de §7.1; usar `guard_name` distinto o modelo separado `PlatformRole`)*
+  * `id`, `name`, `guard_name`, `description`, `is_system` (bool — protegido de borrado)
+* **`permissions` (spatie)**
+  * `id`, `name` (formato `{recurso}.{acción}`), `guard_name`, `group` (agrupación para la UI, ej. "Solicitudes")
+* Tablas pivote de spatie: `role_has_permissions`, `model_has_roles`, `model_has_permissions`.
+* **`menus`** — Menú lateral jerárquico (menú tree), configurable desde *Menú → Opciones de menú*
+  * `id`, `parent_id` (FK self, nullable — soporta N niveles), `label`, `icon` (nombre del ícono), `route` (nombre de ruta Laravel, nullable si es solo agrupador), `permission_name` (string — permiso `ver` requerido para mostrarlo; nullable = visible para todos los autenticados), `order` (int), `is_active` (bool)
+  * *Índices:* (`parent_id`, `order`).
+
+### 7.5 Auditoría y Sistema
 
 * **`audits`** — Tabla de laravel-auditing (registra cambios en todos los modelos auditables)
   * `id`, `user_type`, `user_id`, `event`, `auditable_type`, `auditable_id`, `old_values` (json), `new_values` (json), `url`, `ip_address`, `user_agent`, `created_at`
-* Tablas estándar de Laravel: `password_reset_tokens`, `sessions`, `jobs`, `failed_jobs`, `notifications`, `permission`/`role` de spatie.
+* Tablas estándar de Laravel: `password_reset_tokens`, `sessions`, `jobs`, `failed_jobs`, `notifications`.
 
-### 7.5 Diagrama entidad-relación (resumen)
+### 7.6 Diagrama entidad-relación (resumen)
 
 ```
 departments ──< users >── job_positions
                  │  │
-                 │  └──< user_role >── roles ──< options
+                 │  └──< user_role >── roles(negocio) ──< options
                  │                       │
 job_position_role ──────────────────────┘
                                          │
-roles ──< sod_matrix >── roles          │
+roles(negocio) ──< sod_matrix >── roles │
                                          │
 users ──< role_requests >── roles ──< request_approvals >── users
               │
               └──< request_sod_findings >── sod_matrix
+
+users >──< platform_roles >──< permissions        (RBAC — spatie)
+permissions.name ──▶ menus.permission_name         (visibilidad del sidebar)
+menus ──< menus (parent_id)                        (árbol jerárquico)
 ```
 
 ---
@@ -224,13 +261,98 @@ Construido con Livewire para interactividad en tiempo real sin recargar la pági
    * Si la simulación es exitosa (o el solicitante acepta el riesgo con justificación), se habilita el botón para crear la solicitud.
 
 ### 8.4 Motor de Autorizaciones (Workflow)
-Al generar una solicitud, un `Listener`/`Job` construye el flujo en `request_approvals` según la criticidad:
-* **Criticidad Baja:** Auto-aprobación o 1 paso (jefe directo).
-* **Criticidad Media:** 1 paso (aprobación del `owner_id` de la App).
-* **Criticidad Alta:** 2 pasos (1° `owner_id`, 2° Gestor de Seguridad).
-* **Regla adicional:** si la solicitud tiene conflicto SoD, se **fuerza** el paso de Gestor de Seguridad independientemente de la criticidad.
 
-Cada paso notifica al aprobador; la aprobación del último paso dispara la actualización de la "Foto" (`user_role`).
+El motor decide, para cada solicitud, **si se aprueba automáticamente o qué cadena de aprobadores necesita**. Se dispara con un evento al crear la solicitud (`RoleRequestCreated`) que ejecuta el `Job` **`BuildApprovalWorkflow`**, apoyado en el servicio `ApprovalWorkflowBuilder`.
+
+#### 8.4.1 Tipos de solicitud y nivel de autorización
+
+| Tipo (`role_requests.type`) | Descripción | Nivel |
+|---|---|---|
+| **Asignación de rol** (`asignacion`) | Otorgar un rol nuevo a un usuario. | Normal |
+| **Movimiento de roles** (`movimiento`) | Cambiar un rol por otro (baja de uno + alta de otro) o mover accesos entre usuarios. | Normal |
+| **Modificación de un rol** (`modificacion_rol`) | Cambiar la definición del rol (sus opciones/permisos). Afecta a **todos** los usuarios que lo poseen → **Autorización Mayor**. | Mayor |
+
+La **Autorización Mayor** (`is_major = true`) exige el permiso `solicitudes.autorizar_mayor` y **siempre** incluye al Gestor de Seguridad como paso final. Modificar un rol o definir/editar la matriz SoD cae en esta categoría.
+
+#### 8.4.2 Cómo se decide el flujo (árbol de decisión)
+
+```
+Solicitud creada
+   │
+   ├─▶ ¿Es Autorización Mayor (modificación de rol / matriz)?
+   │        Sí → flujo: [Owner de la App] → [Gestor de Seguridad]  (autorizar_mayor)
+   │
+   ├─▶ Evaluación automática (SodEvaluator):
+   │     ¿El cargo del usuario PERMITE el rol (job_position_role)  Y
+   │      el rol NO produce conflicto en sod_matrix?
+   │        Sí → AUTO-APROBACIÓN  (status = auto_aprobado, auto_resolved = true)
+   │              → se actualiza la "Foto" (user_role) sin intervención humana
+   │
+   └─▶ Si NO califica para auto-aprobación, se arma la cadena por criticidad de la app:
+            Baja   → 1 paso  : Jefe directo
+            Media  → 1 paso  : Owner de la App
+            Alta   → 2 pasos : Owner de la App → Gestor de Seguridad
+        + Si hay conflicto SoD  → se AÑADE (o fuerza) el paso de Gestor de Seguridad,
+                                   sin importar la criticidad.
+```
+
+#### 8.4.3 Reglas de autorización automática
+
+Una solicitud se resuelve **sin aprobadores** cuando se cumplen **todas**:
+1. El **cargo** del usuario admite el rol (existe en `job_position_role`), **y**
+2. El rol **no está** en la matriz de conflictos contra la foto actual del usuario (`sod_matrix`), **y**
+3. No es una Autorización Mayor, **y**
+4. La aplicación no está marcada como "aprobación manual obligatoria".
+
+En ese caso se registra `status = auto_aprobado`, se crea un `request_approvals` con `is_auto = true` para dejar traza, y se actualiza la "Foto". Todo queda auditado igual que una aprobación manual.
+
+#### 8.4.4 Ejecución de los pasos
+* Cada paso pendiente **notifica** al aprobador (o a los usuarios con el rol/ámbito requerido) y aparece en su **Dashboard de pendientes** (§8.8).
+* Un aprobador puede **aprobar** (avanza al siguiente `step_order`) o **rechazar** (termina la solicitud como `rechazado`).
+* **Anti-self-approval:** el motor nunca asigna como aprobador al `requester_id` ni al beneficiario; si por ámbito coincidiera, escala al siguiente nivel.
+* La aprobación del **último paso** dispara la actualización de la "Foto" (`user_role`) —o la aplicación del cambio de rol— dentro de una transacción, y notifica a solicitante y beneficiario.
+* Recordatorios automáticos (Scheduler) para pasos vencidos según SLA.
+
+### 8.5 Módulo de Gestión de Usuarios, Roles y Permisos (RBAC)
+
+Panel de administración, protegido por permisos `usuarios.*`, `roles.*`, `permisos.*`:
+
+* **Usuarios:**
+  * **Alta de usuario:** formulario con nombre, email, departamento, cargo, estado y **asignación de uno o varios roles de plataforma**. Contraseña inicial autogenerada + correo de activación (o alta vía SSO en fase futura).
+  * Edición, activación/desactivación (baja lógica) y reseteo de contraseña.
+  * Asignación/quita de roles de plataforma en caliente; opción de otorgar permisos directos puntuales (sin rol) para excepciones.
+* **Roles (de plataforma):**
+  * CRUD de roles RBAC. Los roles marcados `is_system` no se pueden eliminar.
+  * **Editor de permisos por rol:** matriz de casillas **recurso × acción** (ver / crear / editar / eliminar / autorizar / autorizar_mayor / definir / exportar), agrupada por módulo para facilitar la lectura. Marcar `ver` de un recurso habilita que su opción de menú sea visible.
+* **Permisos:** catálogo de permisos `{recurso}.{acción}` agrupados; se pueden sincronizar automáticamente con las opciones/menús registrados (comando artisan `permissions:sync`).
+* Todo cambio en usuarios/roles/permisos queda **auditado** (§10).
+
+### 8.6 Menú Lateral (Sidebar) Jerárquico
+
+* **Sidebar tipo árbol (menú tree)** con múltiples niveles (`parent_id`), íconos y colapso de secciones (Alpine.js), responsivo (drawer en móvil).
+* **Renderizado por permisos:** un `View Composer`/servicio `MenuBuilder` construye el árbol y **filtra cada nodo contra el permiso `ver`** definido en `menus.permission_name`. Si el usuario no tiene ese permiso, la opción **no se renderiza**; un nodo agrupador se oculta si ninguno de sus hijos es visible.
+* El árbol se **cachea por rol** (Redis) e se invalida al cambiar menús o permisos.
+* Marca activa según la ruta actual y expansión automática de la rama activa.
+
+### 8.7 Configuración del Menú (Menú → Opciones de Menú)
+
+Pantalla de administración (permiso `menus.*`) para **configurar el propio menú sin tocar código**:
+
+* CRUD de opciones de menú: etiqueta, ícono, ruta (nombre de ruta Laravel), **permiso `ver` asociado**, padre (para anidar) y orden.
+* **Reordenamiento y anidación drag-and-drop** (Alpine + persistencia de `order`/`parent_id`).
+* Activar/desactivar opciones sin borrarlas.
+* Validaciones: no permitir ciclos (un nodo no puede ser su propio ancestro), ruta existente y permiso válido.
+* Al guardar, se invalida la caché del menú para que los cambios se reflejen de inmediato.
+
+### 8.8 Autenticación (Login) y Dashboard
+
+* **Login:** pantalla de acceso (Fortify) con email/contraseña, "recordarme", recuperación de contraseña, **2FA (TOTP)** y bloqueo por intentos fallidos (rate limiting). Redirige al Dashboard según los permisos del usuario.
+* **Dashboard de Tareas Pendientes:** página de inicio personalizada que muestra, según el rol:
+  * **Autorizaciones pendientes** asignadas al usuario (solicitudes esperando su aprobación), con acceso directo a aprobar/rechazar.
+  * **Mis solicitudes** y su estado (pendiente / en aprobación / aprobada / rechazada).
+  * **Alertas SoD** abiertas (para Seguridad): conflictos activos y solicitudes con riesgo alto.
+  * **Indicadores** (tarjetas/gráficos): pendientes por antigüedad/SLA, solicitudes por estado, conflictos detectados (ver §12).
+  * Cada tarjeta respeta los permisos `ver` del usuario; si no tiene el permiso, la tarjeta no aparece.
 
 ---
 
@@ -365,7 +487,8 @@ app/
 ├── Policies/              # Autorización por recurso
 ├── Services/
 │   ├── SodEvaluator.php
-│   └── ApprovalWorkflowBuilder.php
+│   ├── ApprovalWorkflowBuilder.php
+│   └── MenuBuilder.php     # Arma el sidebar filtrado por permisos
 ├── Events/  Listeners/  Jobs/  Notifications/
 database/
 ├── migrations/  factories/  seeders/
@@ -384,7 +507,9 @@ tests/
 
 ## 19. Datos Iniciales (Seeders)
 
-* **Roles y permisos de plataforma** (Administrador, Gestor de Seguridad, Owner, Jefe, Solicitante, Auditor).
+* **Permisos** `{recurso}.{acción}` para todos los módulos (comando `permissions:sync`).
+* **Roles de plataforma** con sus permisos precargados: Administrador, Definidor de Matrices, Consultor, Consultor + Autorizador, Gestor de Seguridad, Owner, Jefe, Solicitante, Auditor (ver §4).
+* **Opciones de menú** (`menus`) del sidebar, con jerarquía, orden y su `permission_name` de tipo `ver`.
 * **Departamentos y cargos** de ejemplo.
 * **Aplicaciones** con distintos niveles de criticidad y sus owners.
 * **Roles y opciones** por aplicación (ej. ERP: "Crear Proveedor", "Aprobar Pago").
@@ -397,9 +522,9 @@ tests/
 
 | Fase | Entregable |
 |---|---|
-| **Fase 1 — Fundaciones** | Autenticación, RBAC, CRUD de catálogos, modelo de datos y migraciones. |
+| **Fase 1 — Fundaciones** | Login + 2FA, RBAC (usuarios/roles/permisos), sidebar jerárquico configurable, dashboard de pendientes, CRUD de catálogos, modelo de datos y migraciones. |
 | **Fase 2 — Core SoD** | Matriz SoD, motor `SodEvaluator`, simulador Livewire. |
-| **Fase 3 — Workflow** | Solicitudes, motor de autorizaciones dinámico, notificaciones. |
+| **Fase 3 — Workflow** | Solicitudes (asignación/movimiento/modificación), motor de autorizaciones con auto-aprobación y autorización mayor, notificaciones. |
 | **Fase 4 — Auditoría y Reportes** | Bitácora, dashboards, reportes exportables, import/export Excel. |
 | **Fase 5 — API e Integraciones** | API v1 con Sanctum, documentación OpenAPI. |
 | **Fase 6 — Madurez** | Recertificación de accesos, SSO/SAML, aprovisionamiento automático (IGA). |
