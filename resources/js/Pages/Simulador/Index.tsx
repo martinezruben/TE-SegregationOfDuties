@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Com
 import { Alert, AlertDescription, AlertTitle } from '@/Components/ui/alert';
 import { Separator } from '@/Components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
+import { usePermissions } from '@/hooks/usePermissions';
 import { PageProps } from '@/types';
 
 interface UserRef {
@@ -59,10 +60,19 @@ export default function SimuladorIndex({ usuarios, aplicaciones, filters, evalua
     const [roleId, setRoleId] = useState(filters.role_id ? String(filters.role_id) : '');
 
     const roles = useMemo(() => aplicaciones.find((a) => String(a.id) === appId)?.roles ?? [], [appId, aplicaciones]);
+    const { can } = usePermissions();
 
     const simulate = () => {
         if (!userId || !roleId) return;
         router.get(route('simulador.index'), { managed_user_id: userId, role_id: roleId }, { preserveState: true });
+    };
+
+    const createRequest = () => {
+        if (!target) return;
+        router.post(route('solicitudes.store'), {
+            managed_user_id: target.user.id,
+            role_id: target.role.id,
+        });
     };
 
     const cargoLabel = {
@@ -193,6 +203,12 @@ export default function SimuladorIndex({ usuarios, aplicaciones, filters, evalua
                                             La asignación no es directa; necesitará autorización (o está bloqueada por cargo).
                                         </AlertDescription>
                                     </Alert>
+                                )}
+
+                                {can('solicitudes.crear') && !evaluation.already_assigned && (
+                                    <Button onClick={createRequest} className="w-full">
+                                        Crear solicitud
+                                    </Button>
                                 )}
                             </>
                         )}

@@ -23,6 +23,13 @@ class DatabaseSeeder extends Seeder
         );
         $admin->syncRoles(['Administrador']);
 
+        // 2b) Gestor de Seguridad de prueba (aprobador de autorizaciones mayores/altas).
+        $seguridad = User::updateOrCreate(
+            ['email' => 'seguridad@sod.test'],
+            ['name' => 'Gestor de Seguridad', 'password' => Hash::make('password')],
+        );
+        $seguridad->syncRoles(['Gestor de Seguridad']);
+
         // 3) Menú lateral.
         $this->call(MenuSeeder::class);
 
