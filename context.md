@@ -13,6 +13,7 @@
 4. [Actores y Roles de la Plataforma](#4-actores-y-roles-de-la-plataforma)
 5. [Stack Tecnológico](#5-stack-tecnológico)
 6. [Arquitectura de la Aplicación](#6-arquitectura-de-la-aplicación)
+   - [6A. Sistema de Diseño y Patrones de UI (shadcn/ui)](#6a-sistema-de-diseño-y-patrones-de-ui-shadcnui)
 7. [Modelo de Datos (MySQL)](#7-modelo-de-datos-mysql)
 8. [Funcionalidades y Módulos](#8-funcionalidades-y-módulos)
 9. [Seguridad](#9-seguridad)
@@ -35,6 +36,16 @@
 Este documento define la arquitectura, modelos de base de datos y flujos para un sistema de gestión de roles, validación de **Segregación de Funciones (SoD)** y control de accesos, basado en los conceptos del documento "Segregación de Funciones SoD - Roles". El sistema evoluciona desde un enfoque simple en Python/Streamlit hacia una **plataforma web empresarial** robusta, auditable y escalable.
 
 El propósito central es **prevenir la asignación de combinaciones de roles que generen riesgo** (por ejemplo, que la misma persona pueda crear un proveedor y a la vez aprobar pagos a ese proveedor), soportando además el flujo completo de solicitud, simulación y autorización de accesos.
+
+### 1.1 Las dos poblaciones de usuarios (concepto clave)
+
+El sistema maneja **dos tipos de usuarios completamente distintos**, que **no deben confundirse**:
+
+1. **Agentes / Operadores del sistema** — Son quienes **operan la plataforma**: inician sesión, y según sus **permisos RBAC** definen el catálogo (aplicaciones, roles, opciones), construyen las **matrices de conflicto SoD**, y configuran los **roles permitidos / no permitidos por cargo**. Su acceso a cada acción depende de sus permisos (§4). No son el objeto de las validaciones; son quienes las configuran y ejecutan.
+
+2. **Usuarios Gestionados (sujetos)** — Es la **población gobernada**: todas las personas que poseen accesos en las aplicaciones y sobre las cuales **legislan** las matrices de conflicto y las reglas de cargo. **No inician sesión** en el sistema (son datos, no cuentas). Se crean/administran por pantalla con sus datos de identidad (ID, IGG, Nombre, Área, Cargo). La "foto" de accesos, las solicitudes y las validaciones SoD se aplican **sobre estos usuarios**.
+
+> En resumen: los **Agentes** configuran y validan; los **Usuarios Gestionados** son sobre quienes se valida.
 
 ---
 
@@ -61,8 +72,13 @@ El propósito central es **prevenir la asignación de combinaciones de roles que
 | Término | Definición |
 |---|---|
 | **SoD** | Segregation of Duties. Principio de control interno que separa tareas incompatibles entre distintas personas. |
-| **Foto (Snapshot)** | Conjunto de roles que un usuario posee actualmente en todas las aplicaciones. |
-| **Cargo (Job Position)** | Puesto formal del colaborador; determina qué roles le son "compatibles". |
+| **Agente / Operador** | Usuario con cuenta y permisos RBAC que **opera** el sistema (define catálogos, matrices y reglas). |
+| **Usuario Gestionado (sujeto)** | Persona de la población gobernada (ID, IGG, nombre, área, cargo) sobre la que se aplican accesos y validaciones. **No inicia sesión.** |
+| **IGG** | Identificador institucional/único del usuario gestionado (además del ID interno). |
+| **Foto (Snapshot)** | Conjunto de roles que un usuario gestionado posee actualmente en todas las aplicaciones. |
+| **Área** | Unidad organizativa a la que pertenece el usuario gestionado. |
+| **Cargo (Job Position)** | Puesto formal del colaborador; determina qué roles le son permitidos o no. |
+| **Cargo Genérico (equivalente)** | Cargo normalizado al que apunta un cargo específico; las reglas de cargo y la matriz pueden validarse a nivel genérico para reutilizar reglas. |
 | **Opción** | Acción o permiso atómico dentro de un rol (ej. "Crear Proveedor"). |
 | **Conflicto SoD** | Par de roles/opciones que no deben coexistir en un mismo usuario. |
 | **Owner de aplicación** | Responsable funcional que aprueba accesos a esa aplicación. |
@@ -72,18 +88,40 @@ El propósito central es **prevenir la asignación de combinaciones de roles que
 
 ## 4. Actores y Roles de la Plataforma
 
-Estos son los roles **de la aplicación** (distintos de los roles de negocio que administra):
+Estos son los roles **de la aplicación** (distintos de los roles de negocio que administra). El sistema es **totalmente RBAC**: los roles no traen permisos "cableados", sino que se componen de **permisos granulares** asignables desde la propia UI (ver §8.5). Los roles de abajo son la **plantilla inicial** (seeders), pero un Administrador puede crear roles nuevos y recomponer permisos en caliente.
 
-| Rol | Responsabilidades |
+| Rol (plantilla) | Perfil | Permisos típicos |
+|---|---|---|
+| **Administrador** | Control total | Todos: gestión de usuarios, roles, permisos, menús, catálogos, matriz y autorizaciones. |
+| **Definidor de Matrices** | Diseña las reglas | `matriz.ver`, `matriz.crear`, `matriz.editar`, `matriz.eliminar`, `matriz.definir`; catálogos de roles/opciones en modo lectura. **No autoriza ni consume accesos.** |
+| **Consultor (solo lectura)** | Solo consulta | `*.ver` sobre los módulos permitidos (foto, matriz, reportes, solicitudes). Ningún permiso de escritura ni de autorización. |
+| **Consultor + Autorizador** | Consulta y aprueba | `*.ver` + `solicitudes.autorizar` (y opcionalmente `matriz.ver`). Consulta todo lo visible y **autoriza** los pasos que le corresponden, pero **no define matrices ni administra el sistema**. |
+| **Gestor de Seguridad** | Autoridad de riesgo | `matriz.*`, `solicitudes.autorizar`, `solicitudes.autorizar_mayor`, reportes. Aprueba criticidad alta y conflictos SoD. |
+| **Owner de Aplicación** | Dueño funcional | `solicitudes.ver`, `solicitudes.autorizar` sobre las aplicaciones que posee. |
+| **Jefe/Supervisor** | Aprobador de equipo | `solicitudes.ver`, `solicitudes.autorizar` (primer paso) sobre su equipo. |
+| **Solicitante** | Origina solicitudes | `solicitudes.ver`, `solicitudes.crear`, `simulador.ver`. |
+| **Auditor** | Cumplimiento | `*.ver` + `bitacora.ver` + `reportes.exportar`. Sin escritura. |
+
+### 4.1 Modelo de Permisos Granulares (RBAC)
+
+La autorización se implementa con **[spatie/laravel-permission](https://spatie.be/docs/laravel-permission)** (roles ↔ permisos ↔ usuarios) y **Policies/Gates** de Laravel para reglas finas por recurso (ej. "solo el owner de *esta* app puede autorizar").
+
+* **Convención de nombres:** cada permiso es `{recurso}.{acción}`. Los **recursos** corresponden a las opciones/módulos del sistema (usuarios, roles, permisos, menus, aplicaciones, matriz, foto, solicitudes, simulador, reportes, bitacora, dashboard).
+* **Acciones estándar** por recurso:
+
+| Acción | Significado |
 |---|---|
-| **Administrador** | Gestiona catálogos, usuarios, matriz SoD y parámetros del sistema. |
-| **Gestor de Seguridad** | Aprueba accesos de criticidad alta; administra reglas SoD; revisa reportes. |
-| **Owner de Aplicación** | Aprueba solicitudes de acceso a las aplicaciones bajo su responsabilidad. |
-| **Jefe/Supervisor** | Aprueba (primer paso) solicitudes de su equipo. |
-| **Solicitante** | Crea solicitudes de acceso para sí mismo o para colaboradores a cargo. |
-| **Auditor (solo lectura)** | Consulta la foto, el historial y los reportes sin poder modificar datos. |
+| `ver` | Ver el módulo/opción. **Controla también la visibilidad en el menú lateral** (§8.6). |
+| `crear` | Crear registros. |
+| `editar` | Modificar registros. |
+| `eliminar` | Eliminar (lógico). |
+| `autorizar` | Aprobar/rechazar un paso de solicitud. |
+| `autorizar_mayor` | Aprobar cambios sensibles (modificación de un rol / definición de matriz) — *autorización mayor* (§8.4). |
+| `definir` | Definir/editar reglas de la matriz SoD. |
+| `exportar` | Exportar reportes. |
 
-La autorización se implementa con **[spatie/laravel-permission](https://spatie.be/docs/laravel-permission)** (roles y permisos) y **Policies/Gates** de Laravel para reglas finas por recurso.
+* **Regla de oro de la UI:** un usuario **solo ve en el sidebar** las opciones para las que tiene el permiso `ver`, y dentro de cada pantalla los botones (crear/editar/eliminar/autorizar) se muestran/ocultan según el permiso correspondiente. La misma verificación se repite en el backend (Policy) — nunca se confía solo en la UI.
+* **Herencia de contexto:** además del permiso, las Policies validan el **ámbito** (p. ej. un Owner solo autoriza solicitudes de sus aplicaciones; un Jefe solo las de su área).
 
 ---
 
@@ -91,45 +129,133 @@ La autorización se implementa con **[spatie/laravel-permission](https://spatie.
 
 | Capa | Tecnología |
 |---|---|
-| **Backend** | Laravel 11 (PHP 8.3+) |
-| **Frontend** | Livewire 3 + Alpine.js + Tailwind CSS |
+| **Backend** | Laravel 12/13 (PHP 8.3+) |
+| **Puente Front/Back** | Inertia.js (adapter Laravel + React) |
+| **Frontend (UI)** | React 18 + TypeScript + Tailwind CSS + **shadcn/ui** (Radix UI) |
+| **Componentes/UX** | shadcn/ui, lucide-react (iconos), TanStack Table (data tables), react-hook-form + zod (formularios), sonner (toasts), recharts (gráficos) |
 | **Base de Datos** | MySQL 8.x |
 | **Cache / Colas / Sesiones** | Redis |
 | **Cola de trabajos** | Laravel Queues (driver Redis) + Horizon (monitoreo) |
 | **Autorización** | spatie/laravel-permission |
 | **Auditoría** | owen-it/laravel-auditing |
 | **Import/Export** | maatwebsite/excel (Laravel Excel) |
-| **Autenticación** | Laravel Fortify / Jetstream (2FA incluido) |
-| **Testing** | PHPUnit / Pest + Laravel Dusk (E2E) |
-| **Assets** | Vite |
+| **Autenticación** | Laravel Fortify + Inertia (2FA/TOTP incluido) |
+| **Testing** | Pest/PHPUnit (backend) · Vitest + Testing Library (React) · Playwright (E2E) |
+| **Assets** | Vite (plugin Laravel + React) |
 | **Contenedores** | Docker + Docker Compose (Laravel Sail en desarrollo) |
+
+> **Nota de arquitectura UI:** el admin se construye con **Inertia.js + React**, lo que permite usar los componentes **shadcn/ui reales** (no un port). Laravel sigue siendo el backend (rutas, controladores, validación, políticas); las vistas se sirven como páginas React vía Inertia, sin necesidad de una API separada para la UI. La API REST (§13) se mantiene solo para integraciones externas.
 
 ---
 
 ## 6. Arquitectura de la Aplicación
 
-Arquitectura **monolítica modular** basada en las convenciones de Laravel, con separación de responsabilidades:
+Arquitectura **monolítica modular** basada en las convenciones de Laravel, con UI **Inertia.js + React** y separación de responsabilidades:
 
-* **Controllers / Componentes Livewire** → orquestan la interacción de UI.
-* **Form Requests** → validación de entrada.
+* **Rutas + Controllers (Inertia)** → resuelven la petición y devuelven una **página React** con sus props (`Inertia::render('Users/Index', [...])`).
+* **Form Requests** → validación de entrada (los errores viajan a React vía Inertia).
 * **Services / Actions** → lógica de negocio reutilizable (ej. `SodEvaluator`, `ApprovalWorkflowBuilder`).
 * **Models (Eloquent)** → acceso a datos y relaciones.
-* **Policies** → autorización por recurso.
+* **Policies** → autorización por recurso (compartidas a React vía props `can`).
 * **Events / Listeners / Jobs** → efectos secundarios asíncronos (notificaciones, construcción de flujos, auditoría).
+* **Páginas React (shadcn/ui)** → capa de presentación; sin lógica de negocio, solo orquestan componentes y llamadas Inertia.
 
 ```
-Usuario ─▶ Componente Livewire ─▶ Form Request (validación)
-                                   │
-                                   ▼
-                            Service / Action  ◀── SodEvaluator, ApprovalWorkflowBuilder
-                                   │
-                     ┌─────────────┼──────────────┐
-                     ▼             ▼               ▼
-                 Eloquent      Events/Jobs     Audit Log
-                  (MySQL)       (Redis)      (laravel-auditing)
+Navegador (React + shadcn/ui)
+     │  Inertia visit / form submit
+     ▼
+Ruta ─▶ Controller ─▶ Form Request (validación)
+                          │
+                          ▼
+                   Service / Action  ◀── SodEvaluator, ApprovalWorkflowBuilder
+                          │
+            ┌─────────────┼──────────────┐
+            ▼             ▼               ▼
+        Eloquent      Events/Jobs     Audit Log
+         (MySQL)       (Redis)      (laravel-auditing)
+                          │
+                          ▼
+                Inertia::render(props) ─▶ Página React
 ```
 
 El **motor SoD** (`App\Services\SodEvaluator`) es un servicio puro y testeable de forma aislada, sin dependencias de UI.
+
+---
+
+## 6A. Sistema de Diseño y Patrones de UI (shadcn/ui)
+
+El admin adopta **shadcn/ui** como base del sistema de diseño: componentes accesibles (Radix), estilizados con Tailwind y **propiedad del proyecto** (se copian a `resources/js/components/ui`, no son una dependencia opaca). Se documenta aquí para que toda la app luzca y se comporte de forma consistente.
+
+### 6A.1 Principios de diseño
+* **Consistencia por composición:** toda pantalla se arma con los mismos primitivos (Card, Table, Dialog, Form, Button…). Nada de estilos ad-hoc.
+* **Accesibilidad primero (WCAG 2.1 AA):** foco visible, navegación por teclado, roles ARIA (los trae Radix), contraste suficiente.
+* **Densidad de administración:** UI compacta y legible, orientada a tablas y formularios; espaciados moderados.
+* **Feedback inmediato:** estados de carga (skeletons), toasts de éxito/error (sonner), validación inline.
+* **Responsivo:** sidebar colapsable a drawer en móvil; tablas con scroll horizontal contenido.
+* **Tema claro/oscuro** conmutan mediante variables CSS (ver tokens).
+
+### 6A.2 Design tokens (CSS variables — estilo shadcn "new-york")
+Se definen en `resources/css/app.css` como variables HSL y se consumen desde Tailwind (`tailwind.config`). Paleta base neutra + un acento de marca; los estados de riesgo tienen color propio y consistente:
+
+```css
+:root {
+  --background: 0 0% 100%;        --foreground: 222 47% 11%;
+  --card: 0 0% 100%;             --card-foreground: 222 47% 11%;
+  --primary: 222 47% 31%;        --primary-foreground: 210 40% 98%;   /* acento de marca */
+  --secondary: 210 40% 96%;      --muted: 210 40% 96%;  --muted-foreground: 215 16% 47%;
+  --border: 214 32% 91%;         --input: 214 32% 91%;  --ring: 222 47% 31%;
+  --radius: 0.5rem;
+  /* Semánticos de riesgo/estado (SoD) */
+  --success: 142 71% 45%;  --warning: 38 92% 50%;  --destructive: 0 72% 51%;  --info: 199 89% 48%;
+}
+.dark { --background: 222 47% 11%; --foreground: 210 40% 98%; /* … equivalentes en oscuro … */ }
+```
+
+Mapa de color semántico para el dominio:
+
+| Concepto | Token | Uso |
+|---|---|---|
+| Riesgo Alto / conflicto / rechazo | `destructive` | Badges rojos, alertas de conflicto SoD, botón rechazar. |
+| Riesgo Medio / advertencia | `warning` | Avisos, pendientes por vencer. |
+| Riesgo Bajo / aprobado / auto | `success` | Aprobaciones, auto-aprobación. |
+| Informativo / en proceso | `info` | Estado "en aprobación", tooltips. |
+
+### 6A.3 Inventario de componentes shadcn/ui
+* **Layout & navegación:** `Sidebar`, `Breadcrumb`, `NavigationMenu`, `Sheet` (drawer móvil), `Separator`, `ScrollArea`, `Avatar`, `DropdownMenu` (menú de usuario).
+* **Datos:** `Table` + **TanStack Table** (orden, filtro, paginación server-side, selección), `Badge` (estados/riesgo), `Card`, `Tabs`, `Pagination`, `Skeleton`, `HoverCard`, `Tooltip`.
+* **Formularios:** `Form` (react-hook-form + zod), `Input`, `Textarea`, `Select`, `Combobox` (selector con búsqueda para cargos/áreas/usuarios), `Checkbox`, `Switch`, `RadioGroup`, `DatePicker` (Popover + Calendar), `Command` (paleta de comandos ⌘K).
+* **Overlays & feedback:** `Dialog` (modales CRUD), `AlertDialog` (confirmaciones destructivas), `Popover`, `Toast/Sonner`, `Alert` (bloques de conflicto SoD), `Progress`.
+
+### 6A.4 Patrones de pantalla (recetas reutilizables)
+* **Página de listado (CRUD):** `Card` con encabezado (título + acción "Nuevo"), barra de filtros (`Input` búsqueda + `Select`/`Combobox`), `DataTable` (TanStack + `Table`), acciones por fila en `DropdownMenu`, paginación server-side. Botón "Nuevo" y acciones se ocultan según permisos (`can`).
+* **Crear/Editar:** en `Dialog` (registros simples) o página dedicada (formularios grandes como definición de rol). Validación con zod; errores de servidor mapeados a campos; `Button` con estado `loading`.
+* **Confirmaciones destructivas:** `AlertDialog` ("¿Eliminar cargo? Esta acción es lógica y reversible").
+* **Editor de permisos RBAC (§8.5):** matriz **recurso × acción** con `Table` de `Checkbox` agrupada por módulo (`Accordion`/`Tabs`), guardado optimista con toast.
+* **Configurador de menú (§8.7):** árbol con drag-and-drop (`dnd-kit`) sobre componentes shadcn; cada nodo es una `Card` compacta con su `permission` (`Combobox`).
+* **Simulador SoD (§8.3):** panel de selección (Combobox usuario/app/rol) + panel de resultado con `Alert` `destructive` listando conflictos (`Badge` por nivel de riesgo) o `Alert` `success` si es viable.
+* **Bandeja de autorizaciones (Dashboard, §8.8):** lista de `Card`/filas con `Badge` de estado, botones Aprobar (`success`) / Rechazar (`destructive`) que abren `AlertDialog` con campo de comentarios.
+* **Dashboard:** grilla de `Card` KPI + gráficos `recharts`; cada tarjeta condicionada por permiso `ver`.
+
+### 6A.5 Layout base (shell del admin)
+```
+┌───────────────────────────────────────────────────────────┐
+│ Topbar: breadcrumb · buscador (⌘K) · notificaciones · menú │
+├───────────┬───────────────────────────────────────────────┤
+│  Sidebar  │  Área de contenido (páginas React / Inertia)   │
+│  (tree,   │  ┌─────────────────────────────────────────┐   │
+│  filtrado │  │  Card / DataTable / Form / Dialog …      │   │
+│  por      │  └─────────────────────────────────────────┘   │
+│  permiso) │                                                 │
+└───────────┴───────────────────────────────────────────────┘
+```
+El `AppLayout` (persistent layout de Inertia) contiene Sidebar + Topbar y envuelve todas las páginas; el sidebar se construye desde `menus` filtrado por permisos (§8.6) y llega como prop compartida (`HandleInertiaRequests`).
+
+### 6A.6 Convenciones de front
+* Componentes shadcn en `resources/js/components/ui`; componentes de dominio en `resources/js/components/*`; páginas en `resources/js/pages/*`.
+* Estilo shadcn **"new-york"**, `baseColor: slate`, con `cn()` (clsx + tailwind-merge) para componer clases.
+* Iconografía única: **lucide-react**.
+* Tipado estricto (TypeScript); props de página tipadas y `can` (permisos) tipado.
+* Formato/lint: ESLint + Prettier (front), Pint/Larastan (back).
 
 ---
 
@@ -137,106 +263,229 @@ El **motor SoD** (`App\Services\SodEvaluator`) es un servicio puro y testeable d
 
 > Convenciones: claves primarias `id` (BIGINT UNSIGNED autoincrement), timestamps `created_at`/`updated_at` en todas las tablas, borrado lógico (`deleted_at`) en catálogos críticos, restricciones de integridad referencial explícitas y **índices** en todas las FK y columnas de búsqueda frecuente.
 
-### 7.1 Catálogos Principales
+### 7.1 Usuarios del sistema (dos poblaciones)
 
-* **`users`**
-  * `id`, `name`, `email` (unique), `password`, `job_position_id` (FK), `department_id` (FK), `is_active` (bool), `email_verified_at`, `remember_token`, `created_at`, `updated_at`, `deleted_at`
-* **`departments`** *(nuevo — normaliza el departamento)*
-  * `id`, `name`, `code` (unique), `manager_id` (FK users, nullable)
-* **`job_positions` (Cargos)**
-  * `id`, `name`, `description`, `deleted_at`
+> Se modelan por separado (ver §1.1). **No** se mezclan en la misma tabla.
+
+* **`users` (Agentes / Operadores — cuentas con login)**
+  * `id`, `name`, `email` (unique), `password`, `is_active` (bool), `email_verified_at`, `two_factor_secret` (nullable), `remember_token`, `created_at`, `updated_at`, `deleted_at`
+  * Sus roles/permisos se gestionan vía RBAC (spatie, §7.4). No tienen cargo ni área (no son sujetos de validación).
+* **`managed_users` (Usuarios Gestionados — la población gobernada, sin login)**
+  * `id`, `external_id` (**ID** de negocio, unique), `igg` (**IGG**, unique), `name`, `area_id` (FK areas), `job_position_id` (FK job_positions), `is_active` (bool), `created_at`, `updated_at`, `deleted_at`
+  * Sobre estos usuarios se construye la "Foto", se crean solicitudes y se aplican las validaciones SoD y de cargo.
+
+### 7.2 Catálogos y Reglas de Negocio
+
+* **`areas` (Áreas — CRUD)**
+  * `id`, `name`, `code` (unique), `manager_managed_user_id` (FK managed_users, nullable — responsable del área), `is_active`, `deleted_at`
+* **`job_positions` (Cargos — CRUD)**
+  * `id`, `name`, `description`, `generic_position_id` (**FK self, nullable — Cargo Genérico equivalente**), `is_generic` (bool — marca los cargos que sirven de plantilla genérica), `is_active`, `deleted_at`
+  * El **cargo genérico** permite definir reglas y matrices una vez y que apliquen a todos los cargos específicos que apunten a él (ver §7.2.1).
 * **`applications`** — Catálogo de las apps administradas
-  * `id`, `name` (unique), `description`, `criticality_level` (Enum: `baja`, `media`, `alta`), `owner_id` (FK users — responsable de aprobar accesos), `is_active` (bool), `deleted_at`
+  * `id`, `name` (unique), `description`, `criticality_level` (Enum: `baja`, `media`, `alta`), `owner_id` (FK **users** — agente responsable de aprobar accesos), `is_active` (bool), `deleted_at`
 * **`roles`** — Los roles de negocio dentro de cada app
   * `id`, `application_id` (FK), `name`, `description`, `deleted_at`
   * *unique compuesto:* (`application_id`, `name`)
 * **`options`** — Opciones/Acciones dentro de un rol
   * `id`, `role_id` (FK), `name` (ej. 'Crear Proveedor'), `action_key` (unique por rol)
-
-### 7.2 Relaciones, Asignaciones y Reglas de Negocio
-
-* **`user_role`** — La "Foto" actual: qué tiene cada quién
-  * `id`, `user_id` (FK), `role_id` (FK), `assigned_at`, `assigned_by` (FK users), `source` (Enum: `manual`, `import`, `request`), `expires_at` (nullable — soporta accesos temporales)
-  * *unique compuesto:* (`user_id`, `role_id`)
-* **`job_position_role`** — Matriz de Cargos vs Roles Permitidos
-  * `id`, `job_position_id` (FK), `role_id` (FK)
+* **`user_role`** — La "Foto" actual: qué tiene cada usuario gestionado
+  * `id`, `managed_user_id` (FK managed_users), `role_id` (FK), `assigned_at`, `assigned_by` (FK **users** — agente), `source` (Enum: `manual`, `import`, `request`), `expires_at` (nullable — accesos temporales)
+  * *unique compuesto:* (`managed_user_id`, `role_id`)
+* **`job_position_role`** — Reglas de Cargos vs Roles (**permitidos y NO permitidos**)
+  * `id`, `job_position_id` (FK), `role_id` (FK), `rule_type` (Enum: `permitido`, `no_permitido`), `notes`
   * *unique compuesto:* (`job_position_id`, `role_id`)
+  * Las reglas pueden definirse sobre un cargo específico o sobre un **cargo genérico**; la validación resuelve el cargo del usuario y también consulta su equivalente genérico.
 * **`sod_matrix`** — La tabla de conflictos
   * `id`, `role_a_id` (FK roles), `role_b_id` (FK roles), `risk_level` (Enum: `alto`, `medio`, `bajo`), `description` (razón del conflicto), `is_active` (bool)
-  * *unique compuesto normalizado:* (`role_a_id`, `role_b_id`) — se recomienda almacenar siempre con `role_a_id < role_b_id` para evitar pares duplicados invertidos.
+  * *unique compuesto normalizado:* (`role_a_id`, `role_b_id`) — almacenar siempre con `role_a_id < role_b_id` para evitar pares duplicados invertidos.
+
+#### 7.2.1 Resolución de reglas por cargo (específico + genérico)
+
+Al validar un rol para un usuario gestionado, el motor consulta las reglas en este orden:
+1. Reglas del **cargo específico** del usuario (`job_position_id`).
+2. Reglas del **cargo genérico** equivalente (`generic_position_id`), si existe.
+3. Precedencia: una regla `no_permitido` (en cualquiera de los dos niveles) **prohíbe** el rol; una `permitido` lo habilita; si no hay ninguna regla, se aplica la política por defecto configurada (por defecto: **no permitido** salvo que exista regla `permitido`).
 
 ### 7.3 Gestión de Solicitudes y Autorizaciones
 
 * **`role_requests`**
-  * `id`, `user_id` (FK — usuario que recibe el rol), `requested_role_id` (FK), `status` (Enum: `pendiente`, `en_aprobacion`, `aprobado`, `rechazado`, `cancelado`), `requester_id` (FK — quien lo solicita), `justification` (texto — motivo de negocio), `has_sod_conflict` (bool), `created_at`
-* **`request_approvals`** — Flujo dinámico de aprobación
-  * `id`, `role_request_id` (FK), `approver_id` (FK), `step_order` (int), `status` (Enum: `pendiente`, `aprobado`, `rechazado`), `comments`, `resolved_at`
-* **`request_sod_findings`** *(nuevo — deja constancia de los conflictos detectados en la solicitud)*
+  * `id`, `managed_user_id` (FK managed_users — usuario gestionado que recibe el rol), `requested_role_id` (FK, nullable para modificación de rol), `type` (Enum: `asignacion`, `movimiento`, `modificacion_rol`), `payload` (json — detalle del cambio, ej. rol de origen/destino o campos modificados del rol), `status` (Enum: `pendiente`, `en_aprobacion`, `aprobado`, `rechazado`, `cancelado`, `auto_aprobado`), `requester_id` (FK **users** — agente que lo solicita), `justification` (texto — motivo de negocio), `has_sod_conflict` (bool), `is_major` (bool — requiere *autorización mayor*), `auto_resolved` (bool — resuelta por reglas automáticas), `created_at`
+* **`request_approvals`** — Flujo dinámico de aprobación (los pasos concretos)
+  * `id`, `role_request_id` (FK), `approver_id` (FK, nullable si el paso se resuelve por rol/ámbito), `approver_role` (string — rol/ámbito requerido, ej. `owner_app`, `jefe`, `seguridad`), `step_order` (int), `status` (Enum: `pendiente`, `aprobado`, `rechazado`, `omitido`), `is_auto` (bool — paso resuelto automáticamente), `comments`, `resolved_at`, `resolved_by` (FK, nullable)
+* **`request_sod_findings`** *(deja constancia de los conflictos detectados en la solicitud)*
   * `id`, `role_request_id` (FK), `conflicting_role_id` (FK), `sod_matrix_id` (FK), `risk_level`
 
-### 7.4 Auditoría y Sistema
+### 7.4 RBAC y Menú Configurable
+
+* **`roles` (RBAC de plataforma — spatie)** *(no confundir con los roles de negocio de §7.1; usar `guard_name` distinto o modelo separado `PlatformRole`)*
+  * `id`, `name`, `guard_name`, `description`, `is_system` (bool — protegido de borrado)
+* **`permissions` (spatie)**
+  * `id`, `name` (formato `{recurso}.{acción}`), `guard_name`, `group` (agrupación para la UI, ej. "Solicitudes")
+* Tablas pivote de spatie: `role_has_permissions`, `model_has_roles`, `model_has_permissions`.
+* **`menus`** — Menú lateral jerárquico (menú tree), configurable desde *Menú → Opciones de menú*
+  * `id`, `parent_id` (FK self, nullable — soporta N niveles), `label`, `icon` (nombre del ícono), `route` (nombre de ruta Laravel, nullable si es solo agrupador), `permission_name` (string — permiso `ver` requerido para mostrarlo; nullable = visible para todos los autenticados), `order` (int), `is_active` (bool)
+  * *Índices:* (`parent_id`, `order`).
+
+### 7.5 Auditoría y Sistema
 
 * **`audits`** — Tabla de laravel-auditing (registra cambios en todos los modelos auditables)
   * `id`, `user_type`, `user_id`, `event`, `auditable_type`, `auditable_id`, `old_values` (json), `new_values` (json), `url`, `ip_address`, `user_agent`, `created_at`
-* Tablas estándar de Laravel: `password_reset_tokens`, `sessions`, `jobs`, `failed_jobs`, `notifications`, `permission`/`role` de spatie.
+* Tablas estándar de Laravel: `password_reset_tokens`, `sessions`, `jobs`, `failed_jobs`, `notifications`.
 
-### 7.5 Diagrama entidad-relación (resumen)
+### 7.6 Diagrama entidad-relación (resumen)
 
 ```
-departments ──< users >── job_positions
-                 │  │
-                 │  └──< user_role >── roles ──< options
-                 │                       │
-job_position_role ──────────────────────┘
-                                         │
-roles ──< sod_matrix >── roles          │
-                                         │
-users ──< role_requests >── roles ──< request_approvals >── users
-              │
-              └──< request_sod_findings >── sod_matrix
+POBLACIÓN GOBERNADA (sujetos, sin login)
+areas ──< managed_users >── job_positions ──▶ job_positions (generic_position_id)
+                 │
+                 └──< user_role >── roles(negocio) ──< options
+                                        │
+job_positions ──< job_position_role >──┘  (rule_type: permitido / no_permitido)
+                                        │
+roles(negocio) ──< sod_matrix >── roles
+
+managed_users ──< role_requests >── roles ──< request_approvals >── users(agente)
+                       │
+                       └──< request_sod_findings >── sod_matrix
+
+AGENTES / OPERADORES (cuentas con login)
+users ──< applications (owner_id)                  (agente dueño de app)
+users >──< platform_roles >──< permissions         (RBAC — spatie)
+permissions.name ──▶ menus.permission_name         (visibilidad del sidebar)
+menus ──< menus (parent_id)                        (árbol jerárquico)
 ```
 
 ---
 
 ## 8. Funcionalidades y Módulos
 
-### 8.1 Módulo de Administración (CRUD)
-* **Gestión de Catálogos:** Pantallas interactivas (Livewire) para crear, editar y eliminar usuarios, departamentos, cargos, aplicaciones, roles y opciones. UI con Tailwind CSS (modales y tablas responsivas, paginación, búsqueda y filtros server-side).
-* **Mapeo de Cargos:** Pantalla para asociar qué roles (de cualquier aplicación) son válidos para un Cargo específico.
-* **Actualización de la "Foto":** Interfaz para sincronizar manualmente o importar vía Excel los roles que actualmente poseen los usuarios, con vista previa y validación antes de confirmar.
+> Todas estas pantallas son operadas por **Agentes** y cada acción se habilita según sus permisos RBAC (§4).
 
-### 8.2 Módulo Gestor de la Matriz SoD
-* Pantalla para definir conflictos cruzados entre roles (y opciones).
-* Selección de Rol A y Rol B mediante menús desplegables dependientes (aplicación → rol) y especificación del nivel de riesgo.
-* Prevención de duplicados invertidos y validación de que un rol no entre en conflicto consigo mismo.
+### 8.1 Módulo de Administración (CRUD)
+* **Catálogo de aplicaciones, roles y opciones:** Pantallas interactivas (React/Inertia + shadcn/ui) para crear/editar/eliminar aplicaciones, sus roles y las opciones de cada rol. Patrón "página de listado" (§6A.4) con `DataTable`, modales `Dialog`, paginación y filtros server-side.
+* **CRUD de Áreas:** alta/edición/baja lógica de áreas (nombre, código, responsable).
+* **CRUD de Cargos:** alta/edición/baja de cargos, incluyendo el campo **Cargo Genérico equivalente** (`generic_position_id`) y la marca `is_generic`. Selector para asignar el genérico.
+* **CRUD de Usuarios Gestionados:** pantalla para crear la población gobernada con **ID, IGG, Nombre, Área (selector de áreas) y Cargo (selector de cargos)**, estado activo/inactivo. Importación masiva vía Excel además del alta manual.
+* **CRUD de Agentes/Operadores y RBAC:** ver §8.5 (usuarios con login, roles y permisos).
+* **Actualización de la "Foto":** Interfaz para sincronizar manualmente o importar vía Excel los roles que actualmente poseen los **usuarios gestionados**, con vista previa y validación antes de confirmar.
+
+### 8.2 Módulo Gestor de Reglas (Matriz SoD y Cargos)
+* **Matriz SoD:** pantalla para definir conflictos cruzados entre roles (y opciones). Selección de Rol A y Rol B mediante menús desplegables dependientes (aplicación → rol) y nivel de riesgo. Previene duplicados invertidos y auto-conflicto.
+* **Reglas de Cargo ↔ Rol:** pantalla para asociar, para un cargo (específico o **genérico**), qué roles son **permitidos** y cuáles **no permitidos** (`rule_type`). Estas reglas alimentan la validación del simulador y del motor de autorizaciones.
+* Definir reglas a nivel de **cargo genérico** hace que apliquen a todos los cargos específicos equivalentes, evitando duplicar configuración.
 
 ### 8.3 Módulo de Simulación y Solicitud (Core)
-Construido con Livewire para interactividad en tiempo real sin recargar la página.
+Construido con React/Inertia + shadcn/ui para interactividad en tiempo real sin recargar la página (patrón "Simulador SoD", §6A.4).
 
 **Flujo del Simulador:**
-1. **Selección:** El usuario selecciona a un colaborador y la aplicación a la que desea solicitar acceso.
+1. **Selección:** El agente selecciona a un **usuario gestionado** y la aplicación a la que desea solicitar acceso.
 2. **Intención:** Se elige el rol deseado.
 3. **Validación Backend (`SodEvaluator`):**
-   * *Regla 1 (Cargos):* Verifica en `job_position_role` si el cargo del usuario admite el rol. Si no, alerta que el cargo no es compatible.
-   * *Regla 2 (SoD):* Obtiene la "Foto" del usuario y cruza el rol nuevo contra ella usando `sod_matrix`.
+   * *Regla 1 (Cargos):* Resuelve el cargo del usuario y su **cargo genérico**, y evalúa `job_position_role` (§7.2.1): si hay regla `no_permitido` → bloquea; si no hay `permitido` → alerta de cargo no compatible.
+   * *Regla 2 (SoD):* Obtiene la "Foto" del usuario gestionado y cruza el rol nuevo contra ella usando `sod_matrix`.
 4. **Resultados UI:**
    * Si hay conflicto, se muestra una alerta (`bg-red-100`) detallando roles en conflicto y su nivel de riesgo.
    * Si la simulación es exitosa (o el solicitante acepta el riesgo con justificación), se habilita el botón para crear la solicitud.
 
 ### 8.4 Motor de Autorizaciones (Workflow)
-Al generar una solicitud, un `Listener`/`Job` construye el flujo en `request_approvals` según la criticidad:
-* **Criticidad Baja:** Auto-aprobación o 1 paso (jefe directo).
-* **Criticidad Media:** 1 paso (aprobación del `owner_id` de la App).
-* **Criticidad Alta:** 2 pasos (1° `owner_id`, 2° Gestor de Seguridad).
-* **Regla adicional:** si la solicitud tiene conflicto SoD, se **fuerza** el paso de Gestor de Seguridad independientemente de la criticidad.
 
-Cada paso notifica al aprobador; la aprobación del último paso dispara la actualización de la "Foto" (`user_role`).
+El motor decide, para cada solicitud, **si se aprueba automáticamente o qué cadena de aprobadores necesita**. Se dispara con un evento al crear la solicitud (`RoleRequestCreated`) que ejecuta el `Job` **`BuildApprovalWorkflow`**, apoyado en el servicio `ApprovalWorkflowBuilder`.
+
+#### 8.4.1 Tipos de solicitud y nivel de autorización
+
+| Tipo (`role_requests.type`) | Descripción | Nivel |
+|---|---|---|
+| **Asignación de rol** (`asignacion`) | Otorgar un rol nuevo a un usuario. | Normal |
+| **Movimiento de roles** (`movimiento`) | Cambiar un rol por otro (baja de uno + alta de otro) o mover accesos entre usuarios. | Normal |
+| **Modificación de un rol** (`modificacion_rol`) | Cambiar la definición del rol (sus opciones/permisos). Afecta a **todos** los usuarios que lo poseen → **Autorización Mayor**. | Mayor |
+
+La **Autorización Mayor** (`is_major = true`) exige el permiso `solicitudes.autorizar_mayor` y **siempre** incluye al Gestor de Seguridad como paso final. Modificar un rol o definir/editar la matriz SoD cae en esta categoría.
+
+#### 8.4.2 Cómo se decide el flujo (árbol de decisión)
+
+```
+Solicitud creada
+   │
+   ├─▶ ¿Es Autorización Mayor (modificación de rol / matriz)?
+   │        Sí → flujo: [Owner de la App] → [Gestor de Seguridad]  (autorizar_mayor)
+   │
+   ├─▶ Evaluación automática (SodEvaluator):
+   │     ¿El cargo del usuario PERMITE el rol (job_position_role)  Y
+   │      el rol NO produce conflicto en sod_matrix?
+   │        Sí → AUTO-APROBACIÓN  (status = auto_aprobado, auto_resolved = true)
+   │              → se actualiza la "Foto" (user_role) sin intervención humana
+   │
+   └─▶ Si NO califica para auto-aprobación, se arma la cadena por criticidad de la app:
+            Baja   → 1 paso  : Jefe directo
+            Media  → 1 paso  : Owner de la App
+            Alta   → 2 pasos : Owner de la App → Gestor de Seguridad
+        + Si hay conflicto SoD  → se AÑADE (o fuerza) el paso de Gestor de Seguridad,
+                                   sin importar la criticidad.
+```
+
+#### 8.4.3 Reglas de autorización automática
+
+Una solicitud se resuelve **sin aprobadores** cuando se cumplen **todas**:
+1. El **cargo** del usuario gestionado (o su genérico) tiene regla `permitido` para el rol y **ninguna** regla `no_permitido` (§7.2.1), **y**
+2. El rol **no está** en la matriz de conflictos contra la foto actual del usuario (`sod_matrix`), **y**
+3. No es una Autorización Mayor, **y**
+4. La aplicación no está marcada como "aprobación manual obligatoria".
+
+En ese caso se registra `status = auto_aprobado`, se crea un `request_approvals` con `is_auto = true` para dejar traza, y se actualiza la "Foto". Todo queda auditado igual que una aprobación manual.
+
+#### 8.4.4 Ejecución de los pasos
+* Cada paso pendiente **notifica** al aprobador (o a los usuarios con el rol/ámbito requerido) y aparece en su **Dashboard de pendientes** (§8.8).
+* Un aprobador puede **aprobar** (avanza al siguiente `step_order`) o **rechazar** (termina la solicitud como `rechazado`).
+* **Anti-self-approval:** el motor nunca asigna como aprobador al `requester_id` ni al beneficiario; si por ámbito coincidiera, escala al siguiente nivel.
+* La aprobación del **último paso** dispara la actualización de la "Foto" (`user_role`) —o la aplicación del cambio de rol— dentro de una transacción, y notifica a solicitante y beneficiario.
+* Recordatorios automáticos (Scheduler) para pasos vencidos según SLA.
+
+### 8.5 Módulo de Gestión de Agentes, Roles y Permisos (RBAC)
+
+Panel de administración de los **Agentes/Operadores** (usuarios con login), protegido por permisos `usuarios.*`, `roles.*`, `permisos.*`. *(No confundir con los Usuarios Gestionados de §8.1.)*
+
+* **Agentes (usuarios con login):**
+  * **Alta de agente:** formulario con nombre, email, estado y **asignación de uno o varios roles de plataforma**. Contraseña inicial autogenerada + correo de activación (o alta vía SSO en fase futura).
+  * Edición, activación/desactivación (baja lógica) y reseteo de contraseña.
+  * Asignación/quita de roles de plataforma en caliente; opción de otorgar permisos directos puntuales (sin rol) para excepciones.
+* **Roles (de plataforma):**
+  * CRUD de roles RBAC. Los roles marcados `is_system` no se pueden eliminar.
+  * **Editor de permisos por rol:** matriz de casillas **recurso × acción** (ver / crear / editar / eliminar / autorizar / autorizar_mayor / definir / exportar), agrupada por módulo para facilitar la lectura. Marcar `ver` de un recurso habilita que su opción de menú sea visible.
+* **Permisos:** catálogo de permisos `{recurso}.{acción}` agrupados; se pueden sincronizar automáticamente con las opciones/menús registrados (comando artisan `permissions:sync`).
+* Todo cambio en usuarios/roles/permisos queda **auditado** (§10).
+
+### 8.6 Menú Lateral (Sidebar) Jerárquico
+
+* **Sidebar tipo árbol (menú tree)** con múltiples niveles (`parent_id`), íconos (lucide-react) y colapso de secciones (componente `Sidebar` de shadcn/ui), responsivo (`Sheet`/drawer en móvil).
+* **Renderizado por permisos:** un `View Composer`/servicio `MenuBuilder` construye el árbol y **filtra cada nodo contra el permiso `ver`** definido en `menus.permission_name`. Si el usuario no tiene ese permiso, la opción **no se renderiza**; un nodo agrupador se oculta si ninguno de sus hijos es visible.
+* El árbol se **cachea por rol** (Redis) e se invalida al cambiar menús o permisos.
+* Marca activa según la ruta actual y expansión automática de la rama activa.
+
+### 8.7 Configuración del Menú (Menú → Opciones de Menú)
+
+Pantalla de administración (permiso `menus.*`) para **configurar el propio menú sin tocar código**:
+
+* CRUD de opciones de menú: etiqueta, ícono, ruta (nombre de ruta Laravel), **permiso `ver` asociado**, padre (para anidar) y orden.
+* **Reordenamiento y anidación drag-and-drop** (`dnd-kit` + persistencia de `order`/`parent_id` vía Inertia).
+* Activar/desactivar opciones sin borrarlas.
+* Validaciones: no permitir ciclos (un nodo no puede ser su propio ancestro), ruta existente y permiso válido.
+* Al guardar, se invalida la caché del menú para que los cambios se reflejen de inmediato.
+
+### 8.8 Autenticación (Login) y Dashboard
+
+* **Login:** pantalla de acceso (Fortify) con email/contraseña, "recordarme", recuperación de contraseña, **2FA (TOTP)** y bloqueo por intentos fallidos (rate limiting). Redirige al Dashboard según los permisos del usuario.
+* **Dashboard de Tareas Pendientes:** página de inicio personalizada que muestra, según el rol:
+  * **Autorizaciones pendientes** asignadas al usuario (solicitudes esperando su aprobación), con acceso directo a aprobar/rechazar.
+  * **Mis solicitudes** y su estado (pendiente / en aprobación / aprobada / rechazada).
+  * **Alertas SoD** abiertas (para Seguridad): conflictos activos y solicitudes con riesgo alto.
+  * **Indicadores** (tarjetas/gráficos): pendientes por antigüedad/SLA, solicitudes por estado, conflictos detectados (ver §12).
+  * Cada tarjeta respeta los permisos `ver` del usuario; si no tiene el permiso, la tarjeta no aparece.
 
 ---
 
 ## 9. Seguridad
 
-* **Autenticación:** Laravel Fortify/Jetstream con verificación de correo y **2FA (TOTP)** opcional/obligatorio para roles administrativos.
+* **Autenticación:** Laravel Fortify (con Inertia) con verificación de correo y **2FA (TOTP)** opcional/obligatorio para roles administrativos.
 * **Autorización:** RBAC con spatie/laravel-permission + Policies por recurso. Principio de mínimo privilegio.
 * **Protección de credenciales:** Hash `bcrypt`/`argon2id`; nunca se almacenan contraseñas en texto plano.
 * **Protecciones del framework:** CSRF en formularios, escape de salida (Blade), consultas parametrizadas (Eloquent) contra inyección SQL.
@@ -330,9 +579,10 @@ API versionada (`/api/v1`) protegida con **Laravel Sanctum** (tokens) para integ
 | Nivel | Herramienta | Cobertura objetivo |
 |---|---|---|
 | **Unitarias** | Pest/PHPUnit | `SodEvaluator`, `ApprovalWorkflowBuilder`, reglas de negocio |
-| **Feature/Integración** | Pest/PHPUnit | Endpoints, componentes Livewire, flujos de solicitud/aprobación |
-| **E2E** | Laravel Dusk | Flujo completo: simulación → solicitud → aprobación |
-| **Estático** | Larastan/PHPStan (nivel ≥ 6) | Todo el código |
+| **Feature/Integración** | Pest/PHPUnit | Endpoints y páginas Inertia, flujos de solicitud/aprobación |
+| **Componentes UI** | Vitest + Testing Library | Componentes React y de dominio (DataTable, editor RBAC, simulador) |
+| **E2E** | Playwright | Flujo completo: simulación → solicitud → aprobación |
+| **Estático** | Larastan/PHPStan (nivel ≥ 6) · tsc + ESLint (front) | Todo el código |
 
 * Cobertura mínima recomendada: **80%** en la capa de servicios (core SoD).
 * Casos clave a cubrir: detección de conflicto directo, par invertido, accesos expirados, anti-self-approval, escalamiento a Seguridad por conflicto.
@@ -355,22 +605,37 @@ API versionada (`/api/v1`) protegida con **Laravel Sanctum** (tokens) para integ
 
 ```
 app/
-├── Actions/               # Acciones de un solo propósito
+├── Actions/                   # Acciones de un solo propósito
 ├── Http/
-│   ├── Controllers/Api/   # Controladores de la API v1
-│   ├── Requests/          # Form Requests (validación)
-│   └── Resources/         # API Resources
-├── Livewire/              # Componentes Livewire (UI)
-├── Models/                # Eloquent
-├── Policies/              # Autorización por recurso
+│   ├── Controllers/           # Controladores Inertia (devuelven páginas React)
+│   ├── Controllers/Api/       # Controladores de la API v1 (integraciones)
+│   ├── Middleware/HandleInertiaRequests.php  # props compartidas (auth, can, menú, flash)
+│   ├── Requests/              # Form Requests (validación)
+│   └── Resources/             # API Resources (solo API externa)
+├── Models/                    # Eloquent
+├── Policies/                  # Autorización por recurso (expuesta a React como `can`)
 ├── Services/
 │   ├── SodEvaluator.php
-│   └── ApprovalWorkflowBuilder.php
+│   ├── ApprovalWorkflowBuilder.php
+│   └── MenuBuilder.php        # Arma el sidebar filtrado por permisos
 ├── Events/  Listeners/  Jobs/  Notifications/
+resources/
+├── js/
+│   ├── app.tsx                # Bootstrap de Inertia + React
+│   ├── layouts/AppLayout.tsx  # Shell: Sidebar + Topbar (§6A.5)
+│   ├── components/ui/         # Componentes shadcn/ui (propiedad del proyecto)
+│   ├── components/            # Componentes de dominio (DataTable, PermissionMatrix, MenuTree…)
+│   ├── pages/                 # Páginas Inertia (Users/, Roles/, Sod/, Requests/, Dashboard…)
+│   ├── lib/                   # utils (cn), hooks, tipos compartidos
+│   └── types/                 # Tipos TS (props de página, permisos)
+├── css/app.css                # Tailwind + design tokens (§6A.2)
 database/
 ├── migrations/  factories/  seeders/
 tests/
-├── Unit/  Feature/  Browser/
+├── Unit/  Feature/            # Pest/PHPUnit (backend)
+resources/js/**/__tests__/     # Vitest + Testing Library (front)
+e2e/                           # Playwright (flujos completos)
+components.json                # Config de shadcn/ui (style, baseColor, alias)
 ```
 
 **Convenciones:**
@@ -384,12 +649,16 @@ tests/
 
 ## 19. Datos Iniciales (Seeders)
 
-* **Roles y permisos de plataforma** (Administrador, Gestor de Seguridad, Owner, Jefe, Solicitante, Auditor).
-* **Departamentos y cargos** de ejemplo.
-* **Aplicaciones** con distintos niveles de criticidad y sus owners.
+* **Permisos** `{recurso}.{acción}` para todos los módulos (comando `permissions:sync`).
+* **Roles de plataforma** con sus permisos precargados: Administrador, Definidor de Matrices, Consultor, Consultor + Autorizador, Gestor de Seguridad, Owner, Jefe, Solicitante, Auditor (ver §4).
+* **Opciones de menú** (`menus`) del sidebar, con jerarquía, orden y su `permission_name` de tipo `ver`.
+* **Áreas** y **cargos** de ejemplo, con algunos cargos genéricos y su equivalencia (`generic_position_id`).
+* **Usuarios gestionados** de muestra (ID, IGG, nombre, área, cargo).
+* **Aplicaciones** con distintos niveles de criticidad y sus owners (agentes).
 * **Roles y opciones** por aplicación (ej. ERP: "Crear Proveedor", "Aprobar Pago").
+* **Reglas de cargo** (`job_position_role`) permitidas y no permitidas de ejemplo.
 * **Matriz SoD** con conflictos clásicos precargados (ej. *Crear Proveedor* ⇄ *Aprobar Pago*).
-* **Usuario administrador** inicial parametrizado por `.env`.
+* **Agente administrador** inicial parametrizado por `.env`.
 
 ---
 
@@ -397,9 +666,9 @@ tests/
 
 | Fase | Entregable |
 |---|---|
-| **Fase 1 — Fundaciones** | Autenticación, RBAC, CRUD de catálogos, modelo de datos y migraciones. |
-| **Fase 2 — Core SoD** | Matriz SoD, motor `SodEvaluator`, simulador Livewire. |
-| **Fase 3 — Workflow** | Solicitudes, motor de autorizaciones dinámico, notificaciones. |
+| **Fase 1 — Fundaciones** | Login + 2FA, RBAC (usuarios/roles/permisos), sidebar jerárquico configurable, dashboard de pendientes, CRUD de catálogos, modelo de datos y migraciones. |
+| **Fase 2 — Core SoD** | Matriz SoD, motor `SodEvaluator`, simulador (React/Inertia + shadcn/ui). |
+| **Fase 3 — Workflow** | Solicitudes (asignación/movimiento/modificación), motor de autorizaciones con auto-aprobación y autorización mayor, notificaciones. |
 | **Fase 4 — Auditoría y Reportes** | Bitácora, dashboards, reportes exportables, import/export Excel. |
 | **Fase 5 — API e Integraciones** | API v1 con Sanctum, documentación OpenAPI. |
 | **Fase 6 — Madurez** | Recertificación de accesos, SSO/SAML, aprovisionamiento automático (IGA). |
