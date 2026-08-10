@@ -36,6 +36,16 @@ Este documento define la arquitectura, modelos de base de datos y flujos para un
 
 El propósito central es **prevenir la asignación de combinaciones de roles que generen riesgo** (por ejemplo, que la misma persona pueda crear un proveedor y a la vez aprobar pagos a ese proveedor), soportando además el flujo completo de solicitud, simulación y autorización de accesos.
 
+### 1.1 Las dos poblaciones de usuarios (concepto clave)
+
+El sistema maneja **dos tipos de usuarios completamente distintos**, que **no deben confundirse**:
+
+1. **Agentes / Operadores del sistema** — Son quienes **operan la plataforma**: inician sesión, y según sus **permisos RBAC** definen el catálogo (aplicaciones, roles, opciones), construyen las **matrices de conflicto SoD**, y configuran los **roles permitidos / no permitidos por cargo**. Su acceso a cada acción depende de sus permisos (§4). No son el objeto de las validaciones; son quienes las configuran y ejecutan.
+
+2. **Usuarios Gestionados (sujetos)** — Es la **población gobernada**: todas las personas que poseen accesos en las aplicaciones y sobre las cuales **legislan** las matrices de conflicto y las reglas de cargo. **No inician sesión** en el sistema (son datos, no cuentas). Se crean/administran por pantalla con sus datos de identidad (ID, IGG, Nombre, Área, Cargo). La "foto" de accesos, las solicitudes y las validaciones SoD se aplican **sobre estos usuarios**.
+
+> En resumen: los **Agentes** configuran y validan; los **Usuarios Gestionados** son sobre quienes se valida.
+
 ---
 
 ## 2. Objetivos y Alcance
@@ -61,8 +71,13 @@ El propósito central es **prevenir la asignación de combinaciones de roles que
 | Término | Definición |
 |---|---|
 | **SoD** | Segregation of Duties. Principio de control interno que separa tareas incompatibles entre distintas personas. |
-| **Foto (Snapshot)** | Conjunto de roles que un usuario posee actualmente en todas las aplicaciones. |
-| **Cargo (Job Position)** | Puesto formal del colaborador; determina qué roles le son "compatibles". |
+| **Agente / Operador** | Usuario con cuenta y permisos RBAC que **opera** el sistema (define catálogos, matrices y reglas). |
+| **Usuario Gestionado (sujeto)** | Persona de la población gobernada (ID, IGG, nombre, área, cargo) sobre la que se aplican accesos y validaciones. **No inicia sesión.** |
+| **IGG** | Identificador institucional/único del usuario gestionado (además del ID interno). |
+| **Foto (Snapshot)** | Conjunto de roles que un usuario gestionado posee actualmente en todas las aplicaciones. |
+| **Área** | Unidad organizativa a la que pertenece el usuario gestionado. |
+| **Cargo (Job Position)** | Puesto formal del colaborador; determina qué roles le son permitidos o no. |
+| **Cargo Genérico (equivalente)** | Cargo normalizado al que apunta un cargo específico; las reglas de cargo y la matriz pueden validarse a nivel genérico para reutilizar reglas. |
 | **Opción** | Acción o permiso atómico dentro de un rol (ej. "Crear Proveedor"). |
 | **Conflicto SoD** | Par de roles/opciones que no deben coexistir en un mismo usuario. |
 | **Owner de aplicación** | Responsable funcional que aprueba accesos a esa aplicación. |
@@ -105,7 +120,7 @@ La autorización se implementa con **[spatie/laravel-permission](https://spatie.
 | `exportar` | Exportar reportes. |
 
 * **Regla de oro de la UI:** un usuario **solo ve en el sidebar** las opciones para las que tiene el permiso `ver`, y dentro de cada pantalla los botones (crear/editar/eliminar/autorizar) se muestran/ocultan según el permiso correspondiente. La misma verificación se repite en el backend (Policy) — nunca se confía solo en la UI.
-* **Herencia de contexto:** además del permiso, las Policies validan el **ámbito** (p. ej. un Owner solo autoriza solicitudes de sus aplicaciones; un Jefe solo las de su departamento).
+* **Herencia de contexto:** además del permiso, las Policies validan el **ámbito** (p. ej. un Owner solo autoriza solicitudes de sus aplicaciones; un Jefe solo las de su área).
 
 ---
 
@@ -159,38 +174,53 @@ El **motor SoD** (`App\Services\SodEvaluator`) es un servicio puro y testeable d
 
 > Convenciones: claves primarias `id` (BIGINT UNSIGNED autoincrement), timestamps `created_at`/`updated_at` en todas las tablas, borrado lógico (`deleted_at`) en catálogos críticos, restricciones de integridad referencial explícitas y **índices** en todas las FK y columnas de búsqueda frecuente.
 
-### 7.1 Catálogos Principales
+### 7.1 Usuarios del sistema (dos poblaciones)
 
-* **`users`**
-  * `id`, `name`, `email` (unique), `password`, `job_position_id` (FK), `department_id` (FK), `is_active` (bool), `email_verified_at`, `remember_token`, `created_at`, `updated_at`, `deleted_at`
-* **`departments`** *(nuevo — normaliza el departamento)*
-  * `id`, `name`, `code` (unique), `manager_id` (FK users, nullable)
-* **`job_positions` (Cargos)**
-  * `id`, `name`, `description`, `deleted_at`
+> Se modelan por separado (ver §1.1). **No** se mezclan en la misma tabla.
+
+* **`users` (Agentes / Operadores — cuentas con login)**
+  * `id`, `name`, `email` (unique), `password`, `is_active` (bool), `email_verified_at`, `two_factor_secret` (nullable), `remember_token`, `created_at`, `updated_at`, `deleted_at`
+  * Sus roles/permisos se gestionan vía RBAC (spatie, §7.4). No tienen cargo ni área (no son sujetos de validación).
+* **`managed_users` (Usuarios Gestionados — la población gobernada, sin login)**
+  * `id`, `external_id` (**ID** de negocio, unique), `igg` (**IGG**, unique), `name`, `area_id` (FK areas), `job_position_id` (FK job_positions), `is_active` (bool), `created_at`, `updated_at`, `deleted_at`
+  * Sobre estos usuarios se construye la "Foto", se crean solicitudes y se aplican las validaciones SoD y de cargo.
+
+### 7.2 Catálogos y Reglas de Negocio
+
+* **`areas` (Áreas — CRUD)**
+  * `id`, `name`, `code` (unique), `manager_managed_user_id` (FK managed_users, nullable — responsable del área), `is_active`, `deleted_at`
+* **`job_positions` (Cargos — CRUD)**
+  * `id`, `name`, `description`, `generic_position_id` (**FK self, nullable — Cargo Genérico equivalente**), `is_generic` (bool — marca los cargos que sirven de plantilla genérica), `is_active`, `deleted_at`
+  * El **cargo genérico** permite definir reglas y matrices una vez y que apliquen a todos los cargos específicos que apunten a él (ver §7.2.1).
 * **`applications`** — Catálogo de las apps administradas
-  * `id`, `name` (unique), `description`, `criticality_level` (Enum: `baja`, `media`, `alta`), `owner_id` (FK users — responsable de aprobar accesos), `is_active` (bool), `deleted_at`
+  * `id`, `name` (unique), `description`, `criticality_level` (Enum: `baja`, `media`, `alta`), `owner_id` (FK **users** — agente responsable de aprobar accesos), `is_active` (bool), `deleted_at`
 * **`roles`** — Los roles de negocio dentro de cada app
   * `id`, `application_id` (FK), `name`, `description`, `deleted_at`
   * *unique compuesto:* (`application_id`, `name`)
 * **`options`** — Opciones/Acciones dentro de un rol
   * `id`, `role_id` (FK), `name` (ej. 'Crear Proveedor'), `action_key` (unique por rol)
-
-### 7.2 Relaciones, Asignaciones y Reglas de Negocio
-
-* **`user_role`** — La "Foto" actual: qué tiene cada quién
-  * `id`, `user_id` (FK), `role_id` (FK), `assigned_at`, `assigned_by` (FK users), `source` (Enum: `manual`, `import`, `request`), `expires_at` (nullable — soporta accesos temporales)
-  * *unique compuesto:* (`user_id`, `role_id`)
-* **`job_position_role`** — Matriz de Cargos vs Roles Permitidos
-  * `id`, `job_position_id` (FK), `role_id` (FK)
+* **`user_role`** — La "Foto" actual: qué tiene cada usuario gestionado
+  * `id`, `managed_user_id` (FK managed_users), `role_id` (FK), `assigned_at`, `assigned_by` (FK **users** — agente), `source` (Enum: `manual`, `import`, `request`), `expires_at` (nullable — accesos temporales)
+  * *unique compuesto:* (`managed_user_id`, `role_id`)
+* **`job_position_role`** — Reglas de Cargos vs Roles (**permitidos y NO permitidos**)
+  * `id`, `job_position_id` (FK), `role_id` (FK), `rule_type` (Enum: `permitido`, `no_permitido`), `notes`
   * *unique compuesto:* (`job_position_id`, `role_id`)
+  * Las reglas pueden definirse sobre un cargo específico o sobre un **cargo genérico**; la validación resuelve el cargo del usuario y también consulta su equivalente genérico.
 * **`sod_matrix`** — La tabla de conflictos
   * `id`, `role_a_id` (FK roles), `role_b_id` (FK roles), `risk_level` (Enum: `alto`, `medio`, `bajo`), `description` (razón del conflicto), `is_active` (bool)
-  * *unique compuesto normalizado:* (`role_a_id`, `role_b_id`) — se recomienda almacenar siempre con `role_a_id < role_b_id` para evitar pares duplicados invertidos.
+  * *unique compuesto normalizado:* (`role_a_id`, `role_b_id`) — almacenar siempre con `role_a_id < role_b_id` para evitar pares duplicados invertidos.
+
+#### 7.2.1 Resolución de reglas por cargo (específico + genérico)
+
+Al validar un rol para un usuario gestionado, el motor consulta las reglas en este orden:
+1. Reglas del **cargo específico** del usuario (`job_position_id`).
+2. Reglas del **cargo genérico** equivalente (`generic_position_id`), si existe.
+3. Precedencia: una regla `no_permitido` (en cualquiera de los dos niveles) **prohíbe** el rol; una `permitido` lo habilita; si no hay ninguna regla, se aplica la política por defecto configurada (por defecto: **no permitido** salvo que exista regla `permitido`).
 
 ### 7.3 Gestión de Solicitudes y Autorizaciones
 
 * **`role_requests`**
-  * `id`, `user_id` (FK — usuario que recibe el rol), `requested_role_id` (FK, nullable para modificación de rol), `type` (Enum: `asignacion`, `movimiento`, `modificacion_rol`), `payload` (json — detalle del cambio, ej. rol de origen/destino o campos modificados del rol), `status` (Enum: `pendiente`, `en_aprobacion`, `aprobado`, `rechazado`, `cancelado`, `auto_aprobado`), `requester_id` (FK — quien lo solicita), `justification` (texto — motivo de negocio), `has_sod_conflict` (bool), `is_major` (bool — requiere *autorización mayor*), `auto_resolved` (bool — resuelta por reglas automáticas), `created_at`
+  * `id`, `managed_user_id` (FK managed_users — usuario gestionado que recibe el rol), `requested_role_id` (FK, nullable para modificación de rol), `type` (Enum: `asignacion`, `movimiento`, `modificacion_rol`), `payload` (json — detalle del cambio, ej. rol de origen/destino o campos modificados del rol), `status` (Enum: `pendiente`, `en_aprobacion`, `aprobado`, `rechazado`, `cancelado`, `auto_aprobado`), `requester_id` (FK **users** — agente que lo solicita), `justification` (texto — motivo de negocio), `has_sod_conflict` (bool), `is_major` (bool — requiere *autorización mayor*), `auto_resolved` (bool — resuelta por reglas automáticas), `created_at`
 * **`request_approvals`** — Flujo dinámico de aprobación (los pasos concretos)
   * `id`, `role_request_id` (FK), `approver_id` (FK, nullable si el paso se resuelve por rol/ámbito), `approver_role` (string — rol/ámbito requerido, ej. `owner_app`, `jefe`, `seguridad`), `step_order` (int), `status` (Enum: `pendiente`, `aprobado`, `rechazado`, `omitido`), `is_auto` (bool — paso resuelto automáticamente), `comments`, `resolved_at`, `resolved_by` (FK, nullable)
 * **`request_sod_findings`** *(deja constancia de los conflictos detectados en la solicitud)*
@@ -216,19 +246,22 @@ El **motor SoD** (`App\Services\SodEvaluator`) es un servicio puro y testeable d
 ### 7.6 Diagrama entidad-relación (resumen)
 
 ```
-departments ──< users >── job_positions
-                 │  │
-                 │  └──< user_role >── roles(negocio) ──< options
-                 │                       │
-job_position_role ──────────────────────┘
-                                         │
-roles(negocio) ──< sod_matrix >── roles │
-                                         │
-users ──< role_requests >── roles ──< request_approvals >── users
-              │
-              └──< request_sod_findings >── sod_matrix
+POBLACIÓN GOBERNADA (sujetos, sin login)
+areas ──< managed_users >── job_positions ──▶ job_positions (generic_position_id)
+                 │
+                 └──< user_role >── roles(negocio) ──< options
+                                        │
+job_positions ──< job_position_role >──┘  (rule_type: permitido / no_permitido)
+                                        │
+roles(negocio) ──< sod_matrix >── roles
 
-users >──< platform_roles >──< permissions        (RBAC — spatie)
+managed_users ──< role_requests >── roles ──< request_approvals >── users(agente)
+                       │
+                       └──< request_sod_findings >── sod_matrix
+
+AGENTES / OPERADORES (cuentas con login)
+users ──< applications (owner_id)                  (agente dueño de app)
+users >──< platform_roles >──< permissions         (RBAC — spatie)
 permissions.name ──▶ menus.permission_name         (visibilidad del sidebar)
 menus ──< menus (parent_id)                        (árbol jerárquico)
 ```
@@ -237,25 +270,30 @@ menus ──< menus (parent_id)                        (árbol jerárquico)
 
 ## 8. Funcionalidades y Módulos
 
-### 8.1 Módulo de Administración (CRUD)
-* **Gestión de Catálogos:** Pantallas interactivas (Livewire) para crear, editar y eliminar usuarios, departamentos, cargos, aplicaciones, roles y opciones. UI con Tailwind CSS (modales y tablas responsivas, paginación, búsqueda y filtros server-side).
-* **Mapeo de Cargos:** Pantalla para asociar qué roles (de cualquier aplicación) son válidos para un Cargo específico.
-* **Actualización de la "Foto":** Interfaz para sincronizar manualmente o importar vía Excel los roles que actualmente poseen los usuarios, con vista previa y validación antes de confirmar.
+> Todas estas pantallas son operadas por **Agentes** y cada acción se habilita según sus permisos RBAC (§4).
 
-### 8.2 Módulo Gestor de la Matriz SoD
-* Pantalla para definir conflictos cruzados entre roles (y opciones).
-* Selección de Rol A y Rol B mediante menús desplegables dependientes (aplicación → rol) y especificación del nivel de riesgo.
-* Prevención de duplicados invertidos y validación de que un rol no entre en conflicto consigo mismo.
+### 8.1 Módulo de Administración (CRUD)
+* **Catálogo de aplicaciones, roles y opciones:** Pantallas interactivas (Livewire) para crear/editar/eliminar aplicaciones, sus roles y las opciones de cada rol. UI Tailwind (modales, tablas responsivas, paginación, búsqueda y filtros server-side).
+* **CRUD de Áreas:** alta/edición/baja lógica de áreas (nombre, código, responsable).
+* **CRUD de Cargos:** alta/edición/baja de cargos, incluyendo el campo **Cargo Genérico equivalente** (`generic_position_id`) y la marca `is_generic`. Selector para asignar el genérico.
+* **CRUD de Usuarios Gestionados:** pantalla para crear la población gobernada con **ID, IGG, Nombre, Área (selector de áreas) y Cargo (selector de cargos)**, estado activo/inactivo. Importación masiva vía Excel además del alta manual.
+* **CRUD de Agentes/Operadores y RBAC:** ver §8.5 (usuarios con login, roles y permisos).
+* **Actualización de la "Foto":** Interfaz para sincronizar manualmente o importar vía Excel los roles que actualmente poseen los **usuarios gestionados**, con vista previa y validación antes de confirmar.
+
+### 8.2 Módulo Gestor de Reglas (Matriz SoD y Cargos)
+* **Matriz SoD:** pantalla para definir conflictos cruzados entre roles (y opciones). Selección de Rol A y Rol B mediante menús desplegables dependientes (aplicación → rol) y nivel de riesgo. Previene duplicados invertidos y auto-conflicto.
+* **Reglas de Cargo ↔ Rol:** pantalla para asociar, para un cargo (específico o **genérico**), qué roles son **permitidos** y cuáles **no permitidos** (`rule_type`). Estas reglas alimentan la validación del simulador y del motor de autorizaciones.
+* Definir reglas a nivel de **cargo genérico** hace que apliquen a todos los cargos específicos equivalentes, evitando duplicar configuración.
 
 ### 8.3 Módulo de Simulación y Solicitud (Core)
 Construido con Livewire para interactividad en tiempo real sin recargar la página.
 
 **Flujo del Simulador:**
-1. **Selección:** El usuario selecciona a un colaborador y la aplicación a la que desea solicitar acceso.
+1. **Selección:** El agente selecciona a un **usuario gestionado** y la aplicación a la que desea solicitar acceso.
 2. **Intención:** Se elige el rol deseado.
 3. **Validación Backend (`SodEvaluator`):**
-   * *Regla 1 (Cargos):* Verifica en `job_position_role` si el cargo del usuario admite el rol. Si no, alerta que el cargo no es compatible.
-   * *Regla 2 (SoD):* Obtiene la "Foto" del usuario y cruza el rol nuevo contra ella usando `sod_matrix`.
+   * *Regla 1 (Cargos):* Resuelve el cargo del usuario y su **cargo genérico**, y evalúa `job_position_role` (§7.2.1): si hay regla `no_permitido` → bloquea; si no hay `permitido` → alerta de cargo no compatible.
+   * *Regla 2 (SoD):* Obtiene la "Foto" del usuario gestionado y cruza el rol nuevo contra ella usando `sod_matrix`.
 4. **Resultados UI:**
    * Si hay conflicto, se muestra una alerta (`bg-red-100`) detallando roles en conflicto y su nivel de riesgo.
    * Si la simulación es exitosa (o el solicitante acepta el riesgo con justificación), se habilita el botón para crear la solicitud.
@@ -299,7 +337,7 @@ Solicitud creada
 #### 8.4.3 Reglas de autorización automática
 
 Una solicitud se resuelve **sin aprobadores** cuando se cumplen **todas**:
-1. El **cargo** del usuario admite el rol (existe en `job_position_role`), **y**
+1. El **cargo** del usuario gestionado (o su genérico) tiene regla `permitido` para el rol y **ninguna** regla `no_permitido` (§7.2.1), **y**
 2. El rol **no está** en la matriz de conflictos contra la foto actual del usuario (`sod_matrix`), **y**
 3. No es una Autorización Mayor, **y**
 4. La aplicación no está marcada como "aprobación manual obligatoria".
@@ -313,12 +351,12 @@ En ese caso se registra `status = auto_aprobado`, se crea un `request_approvals`
 * La aprobación del **último paso** dispara la actualización de la "Foto" (`user_role`) —o la aplicación del cambio de rol— dentro de una transacción, y notifica a solicitante y beneficiario.
 * Recordatorios automáticos (Scheduler) para pasos vencidos según SLA.
 
-### 8.5 Módulo de Gestión de Usuarios, Roles y Permisos (RBAC)
+### 8.5 Módulo de Gestión de Agentes, Roles y Permisos (RBAC)
 
-Panel de administración, protegido por permisos `usuarios.*`, `roles.*`, `permisos.*`:
+Panel de administración de los **Agentes/Operadores** (usuarios con login), protegido por permisos `usuarios.*`, `roles.*`, `permisos.*`. *(No confundir con los Usuarios Gestionados de §8.1.)*
 
-* **Usuarios:**
-  * **Alta de usuario:** formulario con nombre, email, departamento, cargo, estado y **asignación de uno o varios roles de plataforma**. Contraseña inicial autogenerada + correo de activación (o alta vía SSO en fase futura).
+* **Agentes (usuarios con login):**
+  * **Alta de agente:** formulario con nombre, email, estado y **asignación de uno o varios roles de plataforma**. Contraseña inicial autogenerada + correo de activación (o alta vía SSO en fase futura).
   * Edición, activación/desactivación (baja lógica) y reseteo de contraseña.
   * Asignación/quita de roles de plataforma en caliente; opción de otorgar permisos directos puntuales (sin rol) para excepciones.
 * **Roles (de plataforma):**
@@ -510,11 +548,13 @@ tests/
 * **Permisos** `{recurso}.{acción}` para todos los módulos (comando `permissions:sync`).
 * **Roles de plataforma** con sus permisos precargados: Administrador, Definidor de Matrices, Consultor, Consultor + Autorizador, Gestor de Seguridad, Owner, Jefe, Solicitante, Auditor (ver §4).
 * **Opciones de menú** (`menus`) del sidebar, con jerarquía, orden y su `permission_name` de tipo `ver`.
-* **Departamentos y cargos** de ejemplo.
-* **Aplicaciones** con distintos niveles de criticidad y sus owners.
+* **Áreas** y **cargos** de ejemplo, con algunos cargos genéricos y su equivalencia (`generic_position_id`).
+* **Usuarios gestionados** de muestra (ID, IGG, nombre, área, cargo).
+* **Aplicaciones** con distintos niveles de criticidad y sus owners (agentes).
 * **Roles y opciones** por aplicación (ej. ERP: "Crear Proveedor", "Aprobar Pago").
+* **Reglas de cargo** (`job_position_role`) permitidas y no permitidas de ejemplo.
 * **Matriz SoD** con conflictos clásicos precargados (ej. *Crear Proveedor* ⇄ *Aprobar Pago*).
-* **Usuario administrador** inicial parametrizado por `.env`.
+* **Agente administrador** inicial parametrizado por `.env`.
 
 ---
 
