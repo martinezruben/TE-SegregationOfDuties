@@ -1,0 +1,56 @@
+import { PropsWithChildren, ReactNode, useEffect } from 'react';
+import { usePage } from '@inertiajs/react';
+import { Menu as MenuIcon } from 'lucide-react';
+import { toast } from 'sonner';
+
+import { SidebarBrand, SidebarNav } from '@/Components/app/Sidebar';
+import { UserMenu } from '@/Components/app/UserMenu';
+import { Toaster } from '@/Components/ui/sonner';
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/Components/ui/sheet';
+import { PageProps } from '@/types';
+
+export default function AppLayout({ title, header, children }: PropsWithChildren<{ title?: string; header?: ReactNode }>) {
+    const { flash } = usePage<PageProps>().props;
+
+    useEffect(() => {
+        if (flash?.success) toast.success(flash.success);
+        if (flash?.error) toast.error(flash.error);
+    }, [flash]);
+
+    return (
+        <div className="min-h-screen bg-muted/30">
+            {/* Sidebar fijo (desktop) */}
+            <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-sidebar lg:flex">
+                <SidebarBrand />
+                <SidebarNav />
+            </aside>
+
+            <div className="lg:pl-64">
+                {/* Topbar */}
+                <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background px-4">
+                    {/* Menú móvil */}
+                    <Sheet>
+                        <SheetTrigger className="lg:hidden" aria-label="Abrir menú">
+                            <MenuIcon className="size-5" />
+                        </SheetTrigger>
+                        <SheetContent side="left" className="w-64 bg-sidebar p-0">
+                            <SheetTitle className="sr-only">Menú</SheetTitle>
+                            <SidebarBrand />
+                            <SidebarNav />
+                        </SheetContent>
+                    </Sheet>
+
+                    <div className="flex-1">
+                        {header ?? (title ? <h1 className="text-lg font-semibold">{title}</h1> : null)}
+                    </div>
+
+                    <UserMenu />
+                </header>
+
+                <main className="p-4 sm:p-6">{children}</main>
+            </div>
+
+            <Toaster richColors position="top-right" />
+        </div>
+    );
+}
