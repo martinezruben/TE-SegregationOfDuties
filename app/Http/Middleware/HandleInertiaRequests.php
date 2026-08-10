@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\MenuBuilder;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -29,10 +30,28 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user,
+                // Permisos del agente para condicionar la UI (context.md §4.1).
+                'permissions' => $user
+                    ? $user->getAllPermissions()->pluck('name')->values()
+                    : [],
+                'roles' => $user
+                    ? $user->getRoleNames()->values()
+                    : [],
+            ],
+            // Menú lateral jerárquico filtrado por permiso `ver` (context.md §8.6).
+            // Sólo se construye para usuarios autenticados; los invitados no lo necesitan.
+            'menu' => $user
+                ? fn () => app(MenuBuilder::class)->forUser($user)
+                : [],
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
             ],
         ];
     }

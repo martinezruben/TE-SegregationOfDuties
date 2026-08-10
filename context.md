@@ -317,10 +317,10 @@ Al validar un rol para un usuario gestionado, el motor consulta las reglas en es
 
 ### 7.4 RBAC y Menú Configurable
 
-* **`roles` (RBAC de plataforma — spatie)** *(no confundir con los roles de negocio de §7.1; usar `guard_name` distinto o modelo separado `PlatformRole`)*
-  * `id`, `name`, `guard_name`, `description`, `is_system` (bool — protegido de borrado)
-* **`permissions` (spatie)**
-  * `id`, `name` (formato `{recurso}.{acción}`), `guard_name`, `group` (agrupación para la UI, ej. "Solicitudes")
+* **`platform_roles` (RBAC de plataforma — spatie)** *(renombrada vía `config/permission.php` para no chocar con los roles de negocio `roles` de §7.1)*
+  * `id`, `name`, `guard_name`
+* **`platform_permissions` (spatie)**
+  * `id`, `name` (formato `{recurso}.{acción}`), `guard_name`
 * Tablas pivote de spatie: `role_has_permissions`, `model_has_roles`, `model_has_permissions`.
 * **`menus`** — Menú lateral jerárquico (menú tree), configurable desde *Menú → Opciones de menú*
   * `id`, `parent_id` (FK self, nullable — soporta N niveles), `label`, `icon` (nombre del ícono), `route` (nombre de ruta Laravel, nullable si es solo agrupador), `permission_name` (string — permiso `ver` requerido para mostrarlo; nullable = visible para todos los autenticados), `order` (int), `is_active` (bool)
