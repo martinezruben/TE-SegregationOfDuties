@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\JobPositionRuleController;
 use App\Http\Controllers\ManagedUserController;
+use App\Http\Controllers\MenuController;
 use App\Http\Controllers\OptionController;
 use App\Http\Controllers\PlatformRoleController;
 use App\Http\Controllers\ProfileController;
@@ -83,6 +84,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Bitácora (auditoría)
     Route::get('bitacora', [AuditController::class, 'index'])->name('bitacora.index');
+
+    // Configuración del menú (Menú -> Opciones de menú)
+    Route::resource('menus', MenuController::class)
+        ->parameters(['menus' => 'menu'])
+        ->only(['index', 'store', 'update', 'destroy']);
 });
 
 Route::middleware('auth')->group(function () {
