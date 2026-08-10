@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AreaController;
+use App\Http\Controllers\JobPositionController;
+use App\Http\Controllers\ManagedUserController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +24,12 @@ Route::get('/dashboard', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     // Catálogos
     Route::resource('areas', AreaController::class)
+        ->only(['index', 'store', 'update', 'destroy']);
+    Route::resource('cargos', JobPositionController::class)
+        ->parameters(['cargos' => 'cargo'])
+        ->only(['index', 'store', 'update', 'destroy']);
+    Route::resource('gestionados', ManagedUserController::class)
+        ->parameters(['gestionados' => 'gestionado'])
         ->only(['index', 'store', 'update', 'destroy']);
 });
 
