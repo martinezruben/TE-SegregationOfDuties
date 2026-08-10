@@ -7,6 +7,7 @@ use App\Http\Controllers\ManagedUserController;
 use App\Http\Controllers\OptionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SodConflictController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -46,6 +47,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('roles/{role}/opciones', [OptionController::class, 'store'])->name('opciones.store');
     Route::put('opciones/{option}', [OptionController::class, 'update'])->name('opciones.update');
     Route::delete('opciones/{option}', [OptionController::class, 'destroy'])->name('opciones.destroy');
+
+    // Matriz SoD
+    Route::resource('matriz', SodConflictController::class)
+        ->parameters(['matriz' => 'matriz'])
+        ->only(['index', 'store', 'update', 'destroy']);
 });
 
 Route::middleware('auth')->group(function () {
