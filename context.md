@@ -184,7 +184,7 @@ El **motor SoD** (`App\Services\SodEvaluator`) es un servicio puro y testeable d
 
 ## 6A. Sistema de Diseño y Patrones de UI (shadcn/ui)
 
-El admin adopta **shadcn/ui** como base del sistema de diseño: componentes accesibles (Radix), estilizados con Tailwind y **propiedad del proyecto** (se copian a `resources/js/components/ui`, no son una dependencia opaca). Se documenta aquí para que toda la app luzca y se comporte de forma consistente.
+El admin adopta **shadcn/ui** como base del sistema de diseño: componentes accesibles (Radix), estilizados con Tailwind y **propiedad del proyecto** (se copian a `resources/js/Components/ui`, no son una dependencia opaca). Se documenta aquí para que toda la app luzca y se comporte de forma consistente.
 
 ### 6A.1 Principios de diseño
 * **Consistencia por composición:** toda pantalla se arma con los mismos primitivos (Card, Table, Dialog, Form, Button…). Nada de estilos ad-hoc.
@@ -251,7 +251,7 @@ Mapa de color semántico para el dominio:
 El `AppLayout` (persistent layout de Inertia) contiene Sidebar + Topbar y envuelve todas las páginas; el sidebar se construye desde `menus` filtrado por permisos (§8.6) y llega como prop compartida (`HandleInertiaRequests`).
 
 ### 6A.6 Convenciones de front
-* Componentes shadcn en `resources/js/components/ui`; componentes de dominio en `resources/js/components/*`; páginas en `resources/js/pages/*`.
+* Componentes shadcn en `resources/js/Components/ui`; componentes de dominio en `resources/js/Components/*`; páginas en `resources/js/Pages/*`.
 * Estilo shadcn **"new-york"**, `baseColor: slate`, con `cn()` (clsx + tailwind-merge) para componer clases.
 * Iconografía única: **lucide-react**.
 * Tipado estricto (TypeScript); props de página tipadas y `can` (permisos) tipado.
@@ -623,7 +623,7 @@ resources/
 ├── js/
 │   ├── app.tsx                # Bootstrap de Inertia + React
 │   ├── layouts/AppLayout.tsx  # Shell: Sidebar + Topbar (§6A.5)
-│   ├── components/ui/         # Componentes shadcn/ui (propiedad del proyecto)
+│   ├── Components/ui/         # Componentes shadcn/ui (propiedad del proyecto)
 │   ├── components/            # Componentes de dominio (DataTable, PermissionMatrix, MenuTree…)
 │   ├── pages/                 # Páginas Inertia (Users/, Roles/, Sod/, Requests/, Dashboard…)
 │   ├── lib/                   # utils (cn), hooks, tipos compartidos
