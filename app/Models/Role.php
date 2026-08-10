@@ -19,6 +19,14 @@ class Role extends Model implements Auditable
 
     protected $fillable = ['application_id', 'name', 'description'];
 
+    protected static function booted(): void
+    {
+        // Al eliminar (incluso lógico) un rol, se eliminan sus opciones.
+        static::deleting(function (Role $role): void {
+            $role->options()->delete();
+        });
+    }
+
     public function application(): BelongsTo
     {
         return $this->belongsTo(Application::class);

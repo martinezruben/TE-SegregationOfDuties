@@ -4,7 +4,9 @@ use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AreaController;
 use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\ManagedUserController;
+use App\Http\Controllers\OptionController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RoleController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -35,6 +37,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('aplicaciones', ApplicationController::class)
         ->parameters(['aplicaciones' => 'aplicacion'])
         ->only(['index', 'store', 'update', 'destroy']);
+
+    // Roles de negocio y sus opciones (anidados en una aplicación)
+    Route::get('aplicaciones/{aplicacion}/roles', [RoleController::class, 'index'])->name('roles.index');
+    Route::post('aplicaciones/{aplicacion}/roles', [RoleController::class, 'store'])->name('roles.store');
+    Route::put('roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+    Route::delete('roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
+    Route::post('roles/{role}/opciones', [OptionController::class, 'store'])->name('opciones.store');
+    Route::put('opciones/{option}', [OptionController::class, 'update'])->name('opciones.update');
+    Route::delete('opciones/{option}', [OptionController::class, 'destroy'])->name('opciones.destroy');
 });
 
 Route::middleware('auth')->group(function () {
