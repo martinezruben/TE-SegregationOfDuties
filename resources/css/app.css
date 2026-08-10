@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================================================================
+   Design tokens del Sistema SoD (estilo shadcn "new-york", baseColor slate)
+   Ver context.md §6A.2 — cualquier cambio de paleta se hace aquí.
+   ========================================================================= */
+@layer base {
+    :root {
+        --background: 0 0% 100%;
+        --foreground: 222 47% 11%;
+
+        --card: 0 0% 100%;
+        --card-foreground: 222 47% 11%;
+
+        --popover: 0 0% 100%;
+        --popover-foreground: 222 47% 11%;
+
+        --primary: 222 47% 31%;
+        --primary-foreground: 210 40% 98%;
+
+        --secondary: 210 40% 96%;
+        --secondary-foreground: 222 47% 11%;
+
+        --muted: 210 40% 96%;
+        --muted-foreground: 215 16% 47%;
+
+        --accent: 210 40% 96%;
+        --accent-foreground: 222 47% 11%;
+
+        /* Semánticos de riesgo / estado (SoD) */
+        --destructive: 0 72% 51%;
+        --destructive-foreground: 210 40% 98%;
+        --success: 142 71% 45%;
+        --success-foreground: 210 40% 98%;
+        --warning: 38 92% 50%;
+        --warning-foreground: 222 47% 11%;
+        --info: 199 89% 48%;
+        --info-foreground: 210 40% 98%;
+
+        --border: 214 32% 91%;
+        --input: 214 32% 91%;
+        --ring: 222 47% 31%;
+
+        --radius: 0.5rem;
+
+        /* Sidebar */
+        --sidebar: 222 47% 11%;
+        --sidebar-foreground: 210 40% 96%;
+        --sidebar-accent: 217 33% 24%;
+        --sidebar-accent-foreground: 210 40% 98%;
+        --sidebar-border: 217 33% 20%;
+    }
+
+    .dark {
+        --background: 222 47% 11%;
+        --foreground: 210 40% 98%;
+
+        --card: 222 47% 13%;
+        --card-foreground: 210 40% 98%;
+
+        --popover: 222 47% 13%;
+        --popover-foreground: 210 40% 98%;
+
+        --primary: 210 40% 98%;
+        --primary-foreground: 222 47% 11%;
+
+        --secondary: 217 33% 18%;
+        --secondary-foreground: 210 40% 98%;
+
+        --muted: 217 33% 18%;
+        --muted-foreground: 215 20% 65%;
+
+        --accent: 217 33% 18%;
+        --accent-foreground: 210 40% 98%;
+
+        --destructive: 0 63% 45%;
+        --destructive-foreground: 210 40% 98%;
+        --success: 142 60% 42%;
+        --success-foreground: 210 40% 98%;
+        --warning: 38 92% 50%;
+        --warning-foreground: 222 47% 11%;
+        --info: 199 89% 48%;
+        --info-foreground: 210 40% 98%;
+
+        --border: 217 33% 20%;
+        --input: 217 33% 20%;
+        --ring: 213 27% 84%;
+
+        --sidebar: 222 47% 8%;
+        --sidebar-foreground: 210 40% 96%;
+        --sidebar-accent: 217 33% 20%;
+        --sidebar-accent-foreground: 210 40% 98%;
+        --sidebar-border: 217 33% 16%;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+}

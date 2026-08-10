@@ -129,7 +129,7 @@ La autorización se implementa con **[spatie/laravel-permission](https://spatie.
 
 | Capa | Tecnología |
 |---|---|
-| **Backend** | Laravel 11 (PHP 8.3+) |
+| **Backend** | Laravel 12/13 (PHP 8.3+) |
 | **Puente Front/Back** | Inertia.js (adapter Laravel + React) |
 | **Frontend (UI)** | React 18 + TypeScript + Tailwind CSS + **shadcn/ui** (Radix UI) |
 | **Componentes/UX** | shadcn/ui, lucide-react (iconos), TanStack Table (data tables), react-hook-form + zod (formularios), sonner (toasts), recharts (gráficos) |
