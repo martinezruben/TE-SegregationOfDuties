@@ -3,6 +3,7 @@
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AreaController;
 use App\Http\Controllers\JobPositionController;
+use App\Http\Controllers\JobPositionRuleController;
 use App\Http\Controllers\ManagedUserController;
 use App\Http\Controllers\OptionController;
 use App\Http\Controllers\ProfileController;
@@ -33,6 +34,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('cargos', JobPositionController::class)
         ->parameters(['cargos' => 'cargo'])
         ->only(['index', 'store', 'update', 'destroy']);
+    // Reglas de cargo (permitido / no permitido)
+    Route::get('cargos/{cargo}/reglas', [JobPositionRuleController::class, 'index'])->name('reglas.index');
+    Route::post('cargos/{cargo}/reglas', [JobPositionRuleController::class, 'store'])->name('reglas.store');
+    Route::delete('cargos/{cargo}/reglas/{role}', [JobPositionRuleController::class, 'destroy'])->name('reglas.destroy');
     Route::resource('gestionados', ManagedUserController::class)
         ->parameters(['gestionados' => 'gestionado'])
         ->only(['index', 'store', 'update', 'destroy']);

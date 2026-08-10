@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { Head, router, useForm } from '@inertiajs/react';
-import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { ListChecks, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/button';
@@ -187,6 +187,11 @@ export default function CargosIndex({ cargos, genericos, filters, can }: Props) 
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-1">
+                                            <Button variant="ghost" size="icon" asChild aria-label="Reglas de rol">
+                                                <Link href={route('reglas.index', c.id)}>
+                                                    <ListChecks className="size-4" />
+                                                </Link>
+                                            </Button>
                                             {can.update && (
                                                 <Button variant="ghost" size="icon" onClick={() => openEdit(c)} aria-label="Editar">
                                                     <Pencil className="size-4" />
