@@ -2,12 +2,14 @@
 
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AreaController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\JobPositionRuleController;
 use App\Http\Controllers\ManagedUserController;
 use App\Http\Controllers\OptionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\RoleRequestController;
 use App\Http\Controllers\SimulatorController;
 use App\Http\Controllers\SodConflictController;
 use Illuminate\Foundation\Application;
@@ -23,9 +25,8 @@ Route::get('/', function () {
     ]);
 });
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // Catálogos
@@ -61,6 +62,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Simulador SoD
     Route::get('simulador', [SimulatorController::class, 'index'])->name('simulador.index');
+
+    // Solicitudes y autorizaciones
+    Route::get('solicitudes', [RoleRequestController::class, 'index'])->name('solicitudes.index');
+    Route::post('solicitudes', [RoleRequestController::class, 'store'])->name('solicitudes.store');
+    Route::post('solicitudes/{solicitud}/aprobar', [RoleRequestController::class, 'approve'])->name('solicitudes.approve');
+    Route::post('solicitudes/{solicitud}/rechazar', [RoleRequestController::class, 'reject'])->name('solicitudes.reject');
 });
 
 Route::middleware('auth')->group(function () {
