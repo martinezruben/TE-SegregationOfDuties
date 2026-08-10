@@ -1,12 +1,15 @@
 <?php
 
+use App\Http\Controllers\AgentController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AreaController;
+use App\Http\Controllers\AuditController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\JobPositionRuleController;
 use App\Http\Controllers\ManagedUserController;
 use App\Http\Controllers\OptionController;
+use App\Http\Controllers\PlatformRoleController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\RoleRequestController;
@@ -68,6 +71,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('solicitudes', [RoleRequestController::class, 'store'])->name('solicitudes.store');
     Route::post('solicitudes/{solicitud}/aprobar', [RoleRequestController::class, 'approve'])->name('solicitudes.approve');
     Route::post('solicitudes/{solicitud}/rechazar', [RoleRequestController::class, 'reject'])->name('solicitudes.reject');
+
+    // Administración: Agentes (usuarios con login)
+    Route::resource('agentes', AgentController::class)
+        ->parameters(['agentes' => 'agente'])
+        ->only(['index', 'store', 'update', 'destroy']);
+
+    // Administración: Roles y permisos (RBAC de plataforma)
+    Route::get('roles-permisos', [PlatformRoleController::class, 'index'])->name('roles-permisos.index');
+    Route::put('roles-permisos/{role}', [PlatformRoleController::class, 'update'])->name('roles-permisos.update');
+
+    // Bitácora (auditoría)
+    Route::get('bitacora', [AuditController::class, 'index'])->name('bitacora.index');
 });
 
 Route::middleware('auth')->group(function () {
