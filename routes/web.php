@@ -7,6 +7,7 @@ use App\Http\Controllers\ManagedUserController;
 use App\Http\Controllers\OptionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SimulatorController;
 use App\Http\Controllers\SodConflictController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -52,6 +53,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('matriz', SodConflictController::class)
         ->parameters(['matriz' => 'matriz'])
         ->only(['index', 'store', 'update', 'destroy']);
+
+    // Simulador SoD
+    Route::get('simulador', [SimulatorController::class, 'index'])->name('simulador.index');
 });
 
 Route::middleware('auth')->group(function () {
