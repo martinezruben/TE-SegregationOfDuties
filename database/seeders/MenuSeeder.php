@@ -59,8 +59,8 @@ class MenuSeeder extends Seeder
                 $attrs
             ));
         };
-        $child3(['label' => 'Agentes', 'icon' => 'user-cog', 'route' => 'usuarios.index', 'permission_name' => 'usuarios.ver']);
-        $child3(['label' => 'Roles y permisos', 'icon' => 'key-round', 'route' => 'roles.index', 'permission_name' => 'roles.ver']);
+        $child3(['label' => 'Agentes', 'icon' => 'user-cog', 'route' => 'agentes.index', 'permission_name' => 'usuarios.ver']);
+        $child3(['label' => 'Roles y permisos', 'icon' => 'key-round', 'route' => 'roles-permisos.index', 'permission_name' => 'roles.ver']);
         $child3(['label' => 'Menús', 'icon' => 'list-tree', 'route' => 'menus.index', 'permission_name' => 'menus.ver']);
         $child3(['label' => 'Bitácora', 'icon' => 'scroll-text', 'route' => 'bitacora.index', 'permission_name' => 'bitacora.ver']);
     }
