@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AppLayout from '@/Layouts/AppLayout';
 import { Head } from '@inertiajs/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
@@ -34,13 +34,11 @@ const riskVariant = (r: Pending['risk']) =>
 
 export default function Dashboard() {
     return (
-        <AuthenticatedLayout
-            header={<h2 className="text-xl font-semibold leading-tight text-foreground">Dashboard</h2>}
-        >
+        <AppLayout title="Dashboard">
             <Head title="Dashboard" />
 
-            <div className="py-8">
-                <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
+            <div>
+                <div className="mx-auto max-w-7xl space-y-6">
                     {/* KPIs */}
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         {kpis.map((k) => (
@@ -96,6 +94,6 @@ export default function Dashboard() {
                     </Card>
                 </div>
             </div>
-        </AuthenticatedLayout>
+        </AppLayout>
     );
 }
