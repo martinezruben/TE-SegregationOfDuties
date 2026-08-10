@@ -13,6 +13,7 @@
 4. [Actores y Roles de la Plataforma](#4-actores-y-roles-de-la-plataforma)
 5. [Stack Tecnológico](#5-stack-tecnológico)
 6. [Arquitectura de la Aplicación](#6-arquitectura-de-la-aplicación)
+   - [6A. Sistema de Diseño y Patrones de UI (shadcn/ui)](#6a-sistema-de-diseño-y-patrones-de-ui-shadcnui)
 7. [Modelo de Datos (MySQL)](#7-modelo-de-datos-mysql)
 8. [Funcionalidades y Módulos](#8-funcionalidades-y-módulos)
 9. [Seguridad](#9-seguridad)
@@ -129,44 +130,132 @@ La autorización se implementa con **[spatie/laravel-permission](https://spatie.
 | Capa | Tecnología |
 |---|---|
 | **Backend** | Laravel 11 (PHP 8.3+) |
-| **Frontend** | Livewire 3 + Alpine.js + Tailwind CSS |
+| **Puente Front/Back** | Inertia.js (adapter Laravel + React) |
+| **Frontend (UI)** | React 18 + TypeScript + Tailwind CSS + **shadcn/ui** (Radix UI) |
+| **Componentes/UX** | shadcn/ui, lucide-react (iconos), TanStack Table (data tables), react-hook-form + zod (formularios), sonner (toasts), recharts (gráficos) |
 | **Base de Datos** | MySQL 8.x |
 | **Cache / Colas / Sesiones** | Redis |
 | **Cola de trabajos** | Laravel Queues (driver Redis) + Horizon (monitoreo) |
 | **Autorización** | spatie/laravel-permission |
 | **Auditoría** | owen-it/laravel-auditing |
 | **Import/Export** | maatwebsite/excel (Laravel Excel) |
-| **Autenticación** | Laravel Fortify / Jetstream (2FA incluido) |
-| **Testing** | PHPUnit / Pest + Laravel Dusk (E2E) |
-| **Assets** | Vite |
+| **Autenticación** | Laravel Fortify + Inertia (2FA/TOTP incluido) |
+| **Testing** | Pest/PHPUnit (backend) · Vitest + Testing Library (React) · Playwright (E2E) |
+| **Assets** | Vite (plugin Laravel + React) |
 | **Contenedores** | Docker + Docker Compose (Laravel Sail en desarrollo) |
+
+> **Nota de arquitectura UI:** el admin se construye con **Inertia.js + React**, lo que permite usar los componentes **shadcn/ui reales** (no un port). Laravel sigue siendo el backend (rutas, controladores, validación, políticas); las vistas se sirven como páginas React vía Inertia, sin necesidad de una API separada para la UI. La API REST (§13) se mantiene solo para integraciones externas.
 
 ---
 
 ## 6. Arquitectura de la Aplicación
 
-Arquitectura **monolítica modular** basada en las convenciones de Laravel, con separación de responsabilidades:
+Arquitectura **monolítica modular** basada en las convenciones de Laravel, con UI **Inertia.js + React** y separación de responsabilidades:
 
-* **Controllers / Componentes Livewire** → orquestan la interacción de UI.
-* **Form Requests** → validación de entrada.
+* **Rutas + Controllers (Inertia)** → resuelven la petición y devuelven una **página React** con sus props (`Inertia::render('Users/Index', [...])`).
+* **Form Requests** → validación de entrada (los errores viajan a React vía Inertia).
 * **Services / Actions** → lógica de negocio reutilizable (ej. `SodEvaluator`, `ApprovalWorkflowBuilder`).
 * **Models (Eloquent)** → acceso a datos y relaciones.
-* **Policies** → autorización por recurso.
+* **Policies** → autorización por recurso (compartidas a React vía props `can`).
 * **Events / Listeners / Jobs** → efectos secundarios asíncronos (notificaciones, construcción de flujos, auditoría).
+* **Páginas React (shadcn/ui)** → capa de presentación; sin lógica de negocio, solo orquestan componentes y llamadas Inertia.
 
 ```
-Usuario ─▶ Componente Livewire ─▶ Form Request (validación)
-                                   │
-                                   ▼
-                            Service / Action  ◀── SodEvaluator, ApprovalWorkflowBuilder
-                                   │
-                     ┌─────────────┼──────────────┐
-                     ▼             ▼               ▼
-                 Eloquent      Events/Jobs     Audit Log
-                  (MySQL)       (Redis)      (laravel-auditing)
+Navegador (React + shadcn/ui)
+     │  Inertia visit / form submit
+     ▼
+Ruta ─▶ Controller ─▶ Form Request (validación)
+                          │
+                          ▼
+                   Service / Action  ◀── SodEvaluator, ApprovalWorkflowBuilder
+                          │
+            ┌─────────────┼──────────────┐
+            ▼             ▼               ▼
+        Eloquent      Events/Jobs     Audit Log
+         (MySQL)       (Redis)      (laravel-auditing)
+                          │
+                          ▼
+                Inertia::render(props) ─▶ Página React
 ```
 
 El **motor SoD** (`App\Services\SodEvaluator`) es un servicio puro y testeable de forma aislada, sin dependencias de UI.
+
+---
+
+## 6A. Sistema de Diseño y Patrones de UI (shadcn/ui)
+
+El admin adopta **shadcn/ui** como base del sistema de diseño: componentes accesibles (Radix), estilizados con Tailwind y **propiedad del proyecto** (se copian a `resources/js/components/ui`, no son una dependencia opaca). Se documenta aquí para que toda la app luzca y se comporte de forma consistente.
+
+### 6A.1 Principios de diseño
+* **Consistencia por composición:** toda pantalla se arma con los mismos primitivos (Card, Table, Dialog, Form, Button…). Nada de estilos ad-hoc.
+* **Accesibilidad primero (WCAG 2.1 AA):** foco visible, navegación por teclado, roles ARIA (los trae Radix), contraste suficiente.
+* **Densidad de administración:** UI compacta y legible, orientada a tablas y formularios; espaciados moderados.
+* **Feedback inmediato:** estados de carga (skeletons), toasts de éxito/error (sonner), validación inline.
+* **Responsivo:** sidebar colapsable a drawer en móvil; tablas con scroll horizontal contenido.
+* **Tema claro/oscuro** conmutan mediante variables CSS (ver tokens).
+
+### 6A.2 Design tokens (CSS variables — estilo shadcn "new-york")
+Se definen en `resources/css/app.css` como variables HSL y se consumen desde Tailwind (`tailwind.config`). Paleta base neutra + un acento de marca; los estados de riesgo tienen color propio y consistente:
+
+```css
+:root {
+  --background: 0 0% 100%;        --foreground: 222 47% 11%;
+  --card: 0 0% 100%;             --card-foreground: 222 47% 11%;
+  --primary: 222 47% 31%;        --primary-foreground: 210 40% 98%;   /* acento de marca */
+  --secondary: 210 40% 96%;      --muted: 210 40% 96%;  --muted-foreground: 215 16% 47%;
+  --border: 214 32% 91%;         --input: 214 32% 91%;  --ring: 222 47% 31%;
+  --radius: 0.5rem;
+  /* Semánticos de riesgo/estado (SoD) */
+  --success: 142 71% 45%;  --warning: 38 92% 50%;  --destructive: 0 72% 51%;  --info: 199 89% 48%;
+}
+.dark { --background: 222 47% 11%; --foreground: 210 40% 98%; /* … equivalentes en oscuro … */ }
+```
+
+Mapa de color semántico para el dominio:
+
+| Concepto | Token | Uso |
+|---|---|---|
+| Riesgo Alto / conflicto / rechazo | `destructive` | Badges rojos, alertas de conflicto SoD, botón rechazar. |
+| Riesgo Medio / advertencia | `warning` | Avisos, pendientes por vencer. |
+| Riesgo Bajo / aprobado / auto | `success` | Aprobaciones, auto-aprobación. |
+| Informativo / en proceso | `info` | Estado "en aprobación", tooltips. |
+
+### 6A.3 Inventario de componentes shadcn/ui
+* **Layout & navegación:** `Sidebar`, `Breadcrumb`, `NavigationMenu`, `Sheet` (drawer móvil), `Separator`, `ScrollArea`, `Avatar`, `DropdownMenu` (menú de usuario).
+* **Datos:** `Table` + **TanStack Table** (orden, filtro, paginación server-side, selección), `Badge` (estados/riesgo), `Card`, `Tabs`, `Pagination`, `Skeleton`, `HoverCard`, `Tooltip`.
+* **Formularios:** `Form` (react-hook-form + zod), `Input`, `Textarea`, `Select`, `Combobox` (selector con búsqueda para cargos/áreas/usuarios), `Checkbox`, `Switch`, `RadioGroup`, `DatePicker` (Popover + Calendar), `Command` (paleta de comandos ⌘K).
+* **Overlays & feedback:** `Dialog` (modales CRUD), `AlertDialog` (confirmaciones destructivas), `Popover`, `Toast/Sonner`, `Alert` (bloques de conflicto SoD), `Progress`.
+
+### 6A.4 Patrones de pantalla (recetas reutilizables)
+* **Página de listado (CRUD):** `Card` con encabezado (título + acción "Nuevo"), barra de filtros (`Input` búsqueda + `Select`/`Combobox`), `DataTable` (TanStack + `Table`), acciones por fila en `DropdownMenu`, paginación server-side. Botón "Nuevo" y acciones se ocultan según permisos (`can`).
+* **Crear/Editar:** en `Dialog` (registros simples) o página dedicada (formularios grandes como definición de rol). Validación con zod; errores de servidor mapeados a campos; `Button` con estado `loading`.
+* **Confirmaciones destructivas:** `AlertDialog` ("¿Eliminar cargo? Esta acción es lógica y reversible").
+* **Editor de permisos RBAC (§8.5):** matriz **recurso × acción** con `Table` de `Checkbox` agrupada por módulo (`Accordion`/`Tabs`), guardado optimista con toast.
+* **Configurador de menú (§8.7):** árbol con drag-and-drop (`dnd-kit`) sobre componentes shadcn; cada nodo es una `Card` compacta con su `permission` (`Combobox`).
+* **Simulador SoD (§8.3):** panel de selección (Combobox usuario/app/rol) + panel de resultado con `Alert` `destructive` listando conflictos (`Badge` por nivel de riesgo) o `Alert` `success` si es viable.
+* **Bandeja de autorizaciones (Dashboard, §8.8):** lista de `Card`/filas con `Badge` de estado, botones Aprobar (`success`) / Rechazar (`destructive`) que abren `AlertDialog` con campo de comentarios.
+* **Dashboard:** grilla de `Card` KPI + gráficos `recharts`; cada tarjeta condicionada por permiso `ver`.
+
+### 6A.5 Layout base (shell del admin)
+```
+┌───────────────────────────────────────────────────────────┐
+│ Topbar: breadcrumb · buscador (⌘K) · notificaciones · menú │
+├───────────┬───────────────────────────────────────────────┤
+│  Sidebar  │  Área de contenido (páginas React / Inertia)   │
+│  (tree,   │  ┌─────────────────────────────────────────┐   │
+│  filtrado │  │  Card / DataTable / Form / Dialog …      │   │
+│  por      │  └─────────────────────────────────────────┘   │
+│  permiso) │                                                 │
+└───────────┴───────────────────────────────────────────────┘
+```
+El `AppLayout` (persistent layout de Inertia) contiene Sidebar + Topbar y envuelve todas las páginas; el sidebar se construye desde `menus` filtrado por permisos (§8.6) y llega como prop compartida (`HandleInertiaRequests`).
+
+### 6A.6 Convenciones de front
+* Componentes shadcn en `resources/js/components/ui`; componentes de dominio en `resources/js/components/*`; páginas en `resources/js/pages/*`.
+* Estilo shadcn **"new-york"**, `baseColor: slate`, con `cn()` (clsx + tailwind-merge) para componer clases.
+* Iconografía única: **lucide-react**.
+* Tipado estricto (TypeScript); props de página tipadas y `can` (permisos) tipado.
+* Formato/lint: ESLint + Prettier (front), Pint/Larastan (back).
 
 ---
 
@@ -273,7 +362,7 @@ menus ──< menus (parent_id)                        (árbol jerárquico)
 > Todas estas pantallas son operadas por **Agentes** y cada acción se habilita según sus permisos RBAC (§4).
 
 ### 8.1 Módulo de Administración (CRUD)
-* **Catálogo de aplicaciones, roles y opciones:** Pantallas interactivas (Livewire) para crear/editar/eliminar aplicaciones, sus roles y las opciones de cada rol. UI Tailwind (modales, tablas responsivas, paginación, búsqueda y filtros server-side).
+* **Catálogo de aplicaciones, roles y opciones:** Pantallas interactivas (React/Inertia + shadcn/ui) para crear/editar/eliminar aplicaciones, sus roles y las opciones de cada rol. Patrón "página de listado" (§6A.4) con `DataTable`, modales `Dialog`, paginación y filtros server-side.
 * **CRUD de Áreas:** alta/edición/baja lógica de áreas (nombre, código, responsable).
 * **CRUD de Cargos:** alta/edición/baja de cargos, incluyendo el campo **Cargo Genérico equivalente** (`generic_position_id`) y la marca `is_generic`. Selector para asignar el genérico.
 * **CRUD de Usuarios Gestionados:** pantalla para crear la población gobernada con **ID, IGG, Nombre, Área (selector de áreas) y Cargo (selector de cargos)**, estado activo/inactivo. Importación masiva vía Excel además del alta manual.
@@ -286,7 +375,7 @@ menus ──< menus (parent_id)                        (árbol jerárquico)
 * Definir reglas a nivel de **cargo genérico** hace que apliquen a todos los cargos específicos equivalentes, evitando duplicar configuración.
 
 ### 8.3 Módulo de Simulación y Solicitud (Core)
-Construido con Livewire para interactividad en tiempo real sin recargar la página.
+Construido con React/Inertia + shadcn/ui para interactividad en tiempo real sin recargar la página (patrón "Simulador SoD", §6A.4).
 
 **Flujo del Simulador:**
 1. **Selección:** El agente selecciona a un **usuario gestionado** y la aplicación a la que desea solicitar acceso.
@@ -367,7 +456,7 @@ Panel de administración de los **Agentes/Operadores** (usuarios con login), pro
 
 ### 8.6 Menú Lateral (Sidebar) Jerárquico
 
-* **Sidebar tipo árbol (menú tree)** con múltiples niveles (`parent_id`), íconos y colapso de secciones (Alpine.js), responsivo (drawer en móvil).
+* **Sidebar tipo árbol (menú tree)** con múltiples niveles (`parent_id`), íconos (lucide-react) y colapso de secciones (componente `Sidebar` de shadcn/ui), responsivo (`Sheet`/drawer en móvil).
 * **Renderizado por permisos:** un `View Composer`/servicio `MenuBuilder` construye el árbol y **filtra cada nodo contra el permiso `ver`** definido en `menus.permission_name`. Si el usuario no tiene ese permiso, la opción **no se renderiza**; un nodo agrupador se oculta si ninguno de sus hijos es visible.
 * El árbol se **cachea por rol** (Redis) e se invalida al cambiar menús o permisos.
 * Marca activa según la ruta actual y expansión automática de la rama activa.
@@ -377,7 +466,7 @@ Panel de administración de los **Agentes/Operadores** (usuarios con login), pro
 Pantalla de administración (permiso `menus.*`) para **configurar el propio menú sin tocar código**:
 
 * CRUD de opciones de menú: etiqueta, ícono, ruta (nombre de ruta Laravel), **permiso `ver` asociado**, padre (para anidar) y orden.
-* **Reordenamiento y anidación drag-and-drop** (Alpine + persistencia de `order`/`parent_id`).
+* **Reordenamiento y anidación drag-and-drop** (`dnd-kit` + persistencia de `order`/`parent_id` vía Inertia).
 * Activar/desactivar opciones sin borrarlas.
 * Validaciones: no permitir ciclos (un nodo no puede ser su propio ancestro), ruta existente y permiso válido.
 * Al guardar, se invalida la caché del menú para que los cambios se reflejen de inmediato.
@@ -396,7 +485,7 @@ Pantalla de administración (permiso `menus.*`) para **configurar el propio men�
 
 ## 9. Seguridad
 
-* **Autenticación:** Laravel Fortify/Jetstream con verificación de correo y **2FA (TOTP)** opcional/obligatorio para roles administrativos.
+* **Autenticación:** Laravel Fortify (con Inertia) con verificación de correo y **2FA (TOTP)** opcional/obligatorio para roles administrativos.
 * **Autorización:** RBAC con spatie/laravel-permission + Policies por recurso. Principio de mínimo privilegio.
 * **Protección de credenciales:** Hash `bcrypt`/`argon2id`; nunca se almacenan contraseñas en texto plano.
 * **Protecciones del framework:** CSRF en formularios, escape de salida (Blade), consultas parametrizadas (Eloquent) contra inyección SQL.
@@ -490,9 +579,10 @@ API versionada (`/api/v1`) protegida con **Laravel Sanctum** (tokens) para integ
 | Nivel | Herramienta | Cobertura objetivo |
 |---|---|---|
 | **Unitarias** | Pest/PHPUnit | `SodEvaluator`, `ApprovalWorkflowBuilder`, reglas de negocio |
-| **Feature/Integración** | Pest/PHPUnit | Endpoints, componentes Livewire, flujos de solicitud/aprobación |
-| **E2E** | Laravel Dusk | Flujo completo: simulación → solicitud → aprobación |
-| **Estático** | Larastan/PHPStan (nivel ≥ 6) | Todo el código |
+| **Feature/Integración** | Pest/PHPUnit | Endpoints y páginas Inertia, flujos de solicitud/aprobación |
+| **Componentes UI** | Vitest + Testing Library | Componentes React y de dominio (DataTable, editor RBAC, simulador) |
+| **E2E** | Playwright | Flujo completo: simulación → solicitud → aprobación |
+| **Estático** | Larastan/PHPStan (nivel ≥ 6) · tsc + ESLint (front) | Todo el código |
 
 * Cobertura mínima recomendada: **80%** en la capa de servicios (core SoD).
 * Casos clave a cubrir: detección de conflicto directo, par invertido, accesos expirados, anti-self-approval, escalamiento a Seguridad por conflicto.
@@ -515,23 +605,37 @@ API versionada (`/api/v1`) protegida con **Laravel Sanctum** (tokens) para integ
 
 ```
 app/
-├── Actions/               # Acciones de un solo propósito
+├── Actions/                   # Acciones de un solo propósito
 ├── Http/
-│   ├── Controllers/Api/   # Controladores de la API v1
-│   ├── Requests/          # Form Requests (validación)
-│   └── Resources/         # API Resources
-├── Livewire/              # Componentes Livewire (UI)
-├── Models/                # Eloquent
-├── Policies/              # Autorización por recurso
+│   ├── Controllers/           # Controladores Inertia (devuelven páginas React)
+│   ├── Controllers/Api/       # Controladores de la API v1 (integraciones)
+│   ├── Middleware/HandleInertiaRequests.php  # props compartidas (auth, can, menú, flash)
+│   ├── Requests/              # Form Requests (validación)
+│   └── Resources/             # API Resources (solo API externa)
+├── Models/                    # Eloquent
+├── Policies/                  # Autorización por recurso (expuesta a React como `can`)
 ├── Services/
 │   ├── SodEvaluator.php
 │   ├── ApprovalWorkflowBuilder.php
-│   └── MenuBuilder.php     # Arma el sidebar filtrado por permisos
+│   └── MenuBuilder.php        # Arma el sidebar filtrado por permisos
 ├── Events/  Listeners/  Jobs/  Notifications/
+resources/
+├── js/
+│   ├── app.tsx                # Bootstrap de Inertia + React
+│   ├── layouts/AppLayout.tsx  # Shell: Sidebar + Topbar (§6A.5)
+│   ├── components/ui/         # Componentes shadcn/ui (propiedad del proyecto)
+│   ├── components/            # Componentes de dominio (DataTable, PermissionMatrix, MenuTree…)
+│   ├── pages/                 # Páginas Inertia (Users/, Roles/, Sod/, Requests/, Dashboard…)
+│   ├── lib/                   # utils (cn), hooks, tipos compartidos
+│   └── types/                 # Tipos TS (props de página, permisos)
+├── css/app.css                # Tailwind + design tokens (§6A.2)
 database/
 ├── migrations/  factories/  seeders/
 tests/
-├── Unit/  Feature/  Browser/
+├── Unit/  Feature/            # Pest/PHPUnit (backend)
+resources/js/**/__tests__/     # Vitest + Testing Library (front)
+e2e/                           # Playwright (flujos completos)
+components.json                # Config de shadcn/ui (style, baseColor, alias)
 ```
 
 **Convenciones:**
@@ -563,7 +667,7 @@ tests/
 | Fase | Entregable |
 |---|---|
 | **Fase 1 — Fundaciones** | Login + 2FA, RBAC (usuarios/roles/permisos), sidebar jerárquico configurable, dashboard de pendientes, CRUD de catálogos, modelo de datos y migraciones. |
-| **Fase 2 — Core SoD** | Matriz SoD, motor `SodEvaluator`, simulador Livewire. |
+| **Fase 2 — Core SoD** | Matriz SoD, motor `SodEvaluator`, simulador (React/Inertia + shadcn/ui). |
 | **Fase 3 — Workflow** | Solicitudes (asignación/movimiento/modificación), motor de autorizaciones con auto-aprobación y autorización mayor, notificaciones. |
 | **Fase 4 — Auditoría y Reportes** | Bitácora, dashboards, reportes exportables, import/export Excel. |
 | **Fase 5 — API e Integraciones** | API v1 con Sanctum, documentación OpenAPI. |
