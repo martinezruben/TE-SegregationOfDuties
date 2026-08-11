@@ -128,7 +128,7 @@ export default function CargosIndex({ cargos, genericos, filters, can }: Props) 
         <AppLayout title="Cargos">
             <Head title="Cargos" />
 
-            <Card className="mx-auto max-w-5xl">
+            <Card className="w-full">
                 <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
                     <div>
                         <CardTitle>Cargos</CardTitle>

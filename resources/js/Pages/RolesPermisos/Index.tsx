@@ -60,7 +60,7 @@ export default function RolesPermisosIndex({ roles, groups, canEdit }: Props) {
         <AppLayout title="Roles y permisos">
             <Head title="Roles y permisos" />
 
-            <div className="mx-auto grid max-w-6xl gap-4 lg:grid-cols-[240px_1fr]">
+            <div className="grid w-full gap-4 lg:grid-cols-[240px_1fr]">
                 {/* Lista de roles */}
                 <Card className="h-fit">
                     <CardHeader>
