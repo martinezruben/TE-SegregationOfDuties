@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { AlertTriangle, CheckCircle2, FlaskConical, Ban } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, FlaskConical, Ban, UserCheck, UserX } from 'lucide-react';
 
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/button';
@@ -36,12 +36,25 @@ interface Evaluation {
     already_assigned: boolean;
     viable: boolean;
 }
+interface AuthStep {
+    authorizer: string;
+    authorizer_type: 'fixed' | 'supervisor';
+    reasons: string[];
+    unresolved: boolean;
+}
+interface Authorization {
+    matched: boolean;
+    steps: AuthStep[];
+    supervisor_required: boolean;
+    supervisor_missing: boolean;
+}
 
 type Props = PageProps<{
     usuarios: UserRef[];
     aplicaciones: AppWithRoles[];
     filters: { managed_user_id: number | null; role_id: number | null };
     evaluation: Evaluation | null;
+    authorization: Authorization | null;
     target: {
         user: { id: number; name: string; igg: string };
         role: { id: number; name: string; application: string | null };
@@ -50,7 +63,7 @@ type Props = PageProps<{
 
 const riskVariant = (r: string) => (r === 'alto' ? 'destructive' : r === 'medio' ? 'warning' : 'success');
 
-export default function SimuladorIndex({ usuarios, aplicaciones, filters, evaluation, target }: Props) {
+export default function SimuladorIndex({ usuarios, aplicaciones, filters, evaluation, authorization, target }: Props) {
     const [userId, setUserId] = useState(filters.managed_user_id ? String(filters.managed_user_id) : '');
     const [appId, setAppId] = useState<string>(() => {
         if (!filters.role_id) return '';
@@ -92,7 +105,7 @@ export default function SimuladorIndex({ usuarios, aplicaciones, filters, evalua
         <AppLayout title="Simulador SoD">
             <Head title="Simulador SoD" />
 
-            <div className="mx-auto grid max-w-5xl gap-4 lg:grid-cols-2">
+            <div className="grid w-full gap-4 lg:grid-cols-2">
                 {/* Panel de selección */}
                 <Card>
                     <CardHeader>
@@ -210,6 +223,53 @@ export default function SimuladorIndex({ usuarios, aplicaciones, filters, evalua
                                             La asignación no es directa; necesitará autorización (o está bloqueada por cargo).
                                         </AlertDescription>
                                     </Alert>
+                                )}
+
+                                {/* Autorizadores que aplicarían (matriz de autorizaciones) */}
+                                {authorization && (authorization.matched || authorization.supervisor_missing) && (
+                                    <div className="space-y-2 rounded-md border p-3">
+                                        <p className="flex items-center gap-2 text-sm font-medium">
+                                            <UserCheck className="size-4" /> Autorizadores requeridos
+                                        </p>
+                                        {authorization.supervisor_missing && (
+                                            <Alert variant="warning">
+                                                <UserX className="size-4" />
+                                                <AlertTitle>El usuario no tiene jefe/supervisor asignado</AlertTitle>
+                                                <AlertDescription>
+                                                    Una regla exige la autorización de "su supervisor". Asigna un jefe al
+                                                    usuario gestionado antes de crear la solicitud.
+                                                </AlertDescription>
+                                            </Alert>
+                                        )}
+                                        {authorization.matched ? (
+                                            <ul className="space-y-2">
+                                                {authorization.steps.map((s, i) => (
+                                                    <li key={i} className="rounded border bg-muted/30 p-2 text-sm">
+                                                        <div className="flex items-center gap-2">
+                                                            <Badge variant={s.authorizer_type === 'supervisor' ? 'info' : 'secondary'}>
+                                                                {s.authorizer_type === 'supervisor' ? 'Su supervisor' : 'Persona fija'}
+                                                            </Badge>
+                                                            <span className={s.unresolved ? 'text-amber-600' : 'font-medium'}>
+                                                                {s.authorizer}
+                                                            </span>
+                                                        </div>
+                                                        <ul className="mt-1 list-disc pl-5 text-xs text-muted-foreground">
+                                                            {s.reasons.map((r, j) => (
+                                                                <li key={j}>{r}</li>
+                                                            ))}
+                                                        </ul>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <p className="text-xs text-muted-foreground">
+                                                Sin reglas configuradas; se usaría el flujo por defecto (owner de aplicación y/o seguridad).
+                                            </p>
+                                        )}
+                                        <p className="text-xs text-muted-foreground">
+                                            Un mismo autorizador que cubra varios motivos aprueba una sola vez.
+                                        </p>
+                                    </div>
                                 )}
 
                                 {can('solicitudes.crear') && !evaluation.already_assigned && (

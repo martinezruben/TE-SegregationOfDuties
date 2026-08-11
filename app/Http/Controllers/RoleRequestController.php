@@ -77,6 +77,7 @@ class RoleRequestController extends Controller
                 'criticality' => $solicitud->requestedRole?->application?->criticality_level?->value,
                 'cargo' => $payload['cargo'] ?? null,
                 'reasons' => $payload['reasons'] ?? [],
+                'supervisor_missing' => $payload['supervisor_missing'] ?? false,
                 'findings' => $solicitud->findings->map(fn ($f) => [
                     'role' => $f->conflictingRole?->name,
                     'risk_level' => $f->risk_level,
@@ -84,6 +85,7 @@ class RoleRequestController extends Controller
                 'approvals' => $solicitud->approvals->map(fn ($a) => [
                     'step_order' => $a->step_order,
                     'approver_role' => $a->approver_role,
+                    'reasons' => $a->reasons ?? [],
                     'approver' => $a->approver?->name,
                     'status' => $a->status->value,
                     'is_auto' => $a->is_auto,

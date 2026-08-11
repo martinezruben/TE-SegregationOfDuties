@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\RequestStatus;
 use App\Models\Application;
 use App\Models\Area;
+use App\Models\AuthorizationRule;
 use App\Models\JobPosition;
 use App\Models\ManagedUser;
 use App\Models\Role;
@@ -159,5 +160,77 @@ class RoleRequestWorkflowTest extends TestCase
         $req = RoleRequest::first();
 
         $this->actingAs($this->admin)->get("/solicitudes/{$req->id}")->assertOk();
+    }
+
+    public function test_matrix_consolidates_same_authorizer_into_one_step(): void
+    {
+        ['position' => $p, 'crear' => $crear, 'aprobar' => $aprobar, 'user' => $u] = $this->scenario('media');
+        // Dispara conflicto SoD (riesgo alto) y desalineación de cargo (sin regla).
+        $u->roles()->attach($crear->id, ['assigned_at' => now(), 'source' => 'import']);
+        SodConflict::create(['role_a_id' => min($crear->id, $aprobar->id), 'role_b_id' => max($crear->id, $aprobar->id), 'risk_level' => 'alto']);
+
+        // Ambas reglas apuntan al MISMO autorizador (seguridad).
+        AuthorizationRule::create(['name' => 'R1', 'trigger_type' => 'sod_risk', 'risk_level' => 'alto', 'authorizer_type' => 'fixed', 'authorizer_id' => $this->security->id]);
+        AuthorizationRule::create(['name' => 'R2', 'trigger_type' => 'cargo_misalignment', 'authorizer_type' => 'fixed', 'authorizer_id' => $this->security->id]);
+
+        $this->actingAs($this->admin)->post('/solicitudes', ['managed_user_id' => $u->id, 'requested_role_id' => $aprobar->id]);
+        $req = RoleRequest::first();
+
+        // Un solo paso, aunque haya dos disparadores.
+        $this->assertCount(1, $req->approvals);
+        $step = $req->approvals->first();
+        $this->assertSame($this->security->id, $step->approver_id);
+        $this->assertCount(2, $step->reasons);
+    }
+
+    public function test_supervisor_rule_resolves_to_managed_user_supervisor(): void
+    {
+        ['position' => $p, 'crear' => $crear, 'aprobar' => $aprobar, 'user' => $u] = $this->scenario('media');
+        $u->update(['supervisor_id' => $this->owner->id]);
+        $u->roles()->attach($crear->id, ['assigned_at' => now(), 'source' => 'import']);
+        $p->roleRules()->attach($aprobar->id, ['rule_type' => 'permitido']); // cargo permitido: solo dispara el SoD
+        SodConflict::create(['role_a_id' => min($crear->id, $aprobar->id), 'role_b_id' => max($crear->id, $aprobar->id), 'risk_level' => 'medio']);
+
+        AuthorizationRule::create(['name' => 'Medio→Jefe', 'trigger_type' => 'sod_risk', 'risk_level' => 'medio', 'authorizer_type' => 'supervisor']);
+
+        $this->actingAs($this->admin)->post('/solicitudes', ['managed_user_id' => $u->id, 'requested_role_id' => $aprobar->id]);
+        $req = RoleRequest::first();
+
+        $this->assertCount(1, $req->approvals);
+        $this->assertSame($this->owner->id, $req->approvals->first()->approver_id);
+        $this->assertSame('jefe', $req->approvals->first()->approver_role);
+    }
+
+    public function test_missing_supervisor_is_flagged_and_falls_back_to_security(): void
+    {
+        ['position' => $p, 'crear' => $crear, 'aprobar' => $aprobar, 'user' => $u] = $this->scenario('media');
+        // Sin supervisor asignado.
+        $u->roles()->attach($crear->id, ['assigned_at' => now(), 'source' => 'import']);
+        $p->roleRules()->attach($aprobar->id, ['rule_type' => 'permitido']);
+        SodConflict::create(['role_a_id' => min($crear->id, $aprobar->id), 'role_b_id' => max($crear->id, $aprobar->id), 'risk_level' => 'medio']);
+
+        AuthorizationRule::create(['name' => 'Medio→Jefe', 'trigger_type' => 'sod_risk', 'risk_level' => 'medio', 'authorizer_type' => 'supervisor']);
+
+        $this->actingAs($this->admin)->post('/solicitudes', ['managed_user_id' => $u->id, 'requested_role_id' => $aprobar->id]);
+        $req = RoleRequest::first();
+
+        $this->assertTrue($req->payload['supervisor_missing']);
+        $this->assertSame($this->security->id, $req->approvals->first()->approver_id);
+        $this->assertSame('seguridad', $req->approvals->first()->approver_role);
+    }
+
+    public function test_application_rule_prevents_auto_approval(): void
+    {
+        ['position' => $p, 'app' => $app, 'crear' => $role, 'user' => $u] = $this->scenario('media');
+        $p->roleRules()->attach($role->id, ['rule_type' => 'permitido']); // sería auto-aprobable...
+
+        // ...pero una regla por aplicación exige autorización del owner.
+        AuthorizationRule::create(['name' => 'App→Owner', 'trigger_type' => 'application', 'application_id' => $app->id, 'authorizer_type' => 'fixed', 'authorizer_id' => $this->owner->id]);
+
+        $this->actingAs($this->admin)->post('/solicitudes', ['managed_user_id' => $u->id, 'requested_role_id' => $role->id]);
+        $req = RoleRequest::first();
+
+        $this->assertSame(RequestStatus::EnAprobacion, $req->status);
+        $this->assertSame($this->owner->id, $req->approvals->first()->approver_id);
     }
 }

@@ -47,6 +47,7 @@ class MenuSeeder extends Seeder
             ));
         };
         $child2(['label' => 'Matriz de conflictos', 'icon' => 'grid-3x3', 'route' => 'matriz.index', 'permission_name' => 'matriz.ver']);
+        $child2(['label' => 'Autorizadores', 'icon' => 'user-check', 'route' => 'autorizaciones.index', 'permission_name' => 'autorizaciones.ver']);
         $child2(['label' => 'Simulador', 'icon' => 'flask-conical', 'route' => 'simulador.index', 'permission_name' => 'simulador.ver']);
         $child2(['label' => 'Solicitudes', 'icon' => 'file-check', 'route' => 'solicitudes.index', 'permission_name' => 'solicitudes.ver']);
 

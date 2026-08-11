@@ -6,6 +6,7 @@ use App\Http\Requests\ManagedUserRequest;
 use App\Models\Area;
 use App\Models\JobPosition;
 use App\Models\ManagedUser;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -21,7 +22,7 @@ class ManagedUserController extends Controller
         $search = (string) $request->string('search');
 
         $usuarios = ManagedUser::query()
-            ->with(['area:id,name', 'jobPosition:id,name'])
+            ->with(['area:id,name', 'jobPosition:id,name', 'supervisor:id,name'])
             ->when($search !== '', fn ($q) => $q
                 ->where('name', 'like', "%{$search}%")
                 ->orWhere('external_id', 'like', "%{$search}%")
@@ -34,6 +35,7 @@ class ManagedUserController extends Controller
             'usuarios' => $usuarios,
             'areas' => Area::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'cargos' => JobPosition::orderBy('name')->get(['id', 'name']),
+            'supervisores' => User::orderBy('name')->get(['id', 'name']),
             'filters' => ['search' => $search],
             'can' => [
                 'create' => Gate::allows('create', ManagedUser::class),

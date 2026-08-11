@@ -29,6 +29,7 @@ class RolePermissionSeeder extends Seeder
         'gestionados' => ['ver', 'crear', 'editar', 'eliminar'],
         'aplicaciones' => ['ver', 'crear', 'editar', 'eliminar'],
         'matriz' => ['ver', 'crear', 'editar', 'eliminar', 'definir'],
+        'autorizaciones' => ['ver', 'crear', 'editar', 'eliminar'],
         'foto' => ['ver', 'editar'],
         'solicitudes' => ['ver', 'crear', 'autorizar', 'autorizar_mayor'],
         'simulador' => ['ver'],
@@ -52,13 +53,14 @@ class RolePermissionSeeder extends Seeder
         $only = fn (array $names) => $names;
         $allViews = array_values(array_filter($all, fn ($p) => str_ends_with($p, '.ver')));
         $matrizAll = array_values(array_filter($all, fn ($p) => str_starts_with($p, 'matriz.')));
+        $autorizacionesAll = array_values(array_filter($all, fn ($p) => str_starts_with($p, 'autorizaciones.')));
 
         $roles = [
             'Administrador' => $all,
-            'Definidor de Matrices' => array_merge($matrizAll, ['aplicaciones.ver', 'roles.ver', 'dashboard.ver']),
+            'Definidor de Matrices' => array_merge($matrizAll, $autorizacionesAll, ['aplicaciones.ver', 'roles.ver', 'dashboard.ver']),
             'Consultor' => $allViews,
             'Consultor + Autorizador' => array_merge($allViews, ['solicitudes.autorizar']),
-            'Gestor de Seguridad' => array_merge($matrizAll, [
+            'Gestor de Seguridad' => array_merge($matrizAll, $autorizacionesAll, [
                 'solicitudes.ver', 'solicitudes.autorizar', 'solicitudes.autorizar_mayor',
                 'reportes.ver', 'reportes.exportar', 'bitacora.ver', 'dashboard.ver',
             ]),

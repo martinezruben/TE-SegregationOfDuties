@@ -3,6 +3,7 @@
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AreaController;
+use App\Http\Controllers\AuthorizationRuleController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\JobPositionController;
@@ -66,6 +67,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Simulador SoD
     Route::get('simulador', [SimulatorController::class, 'index'])->name('simulador.index');
+
+    // Matriz de autorizaciones (quién autoriza según el disparador)
+    Route::resource('autorizaciones', AuthorizationRuleController::class)
+        ->parameters(['autorizaciones' => 'autorizacion'])
+        ->only(['index', 'store', 'update', 'destroy']);
 
     // Solicitudes y autorizaciones
     Route::get('solicitudes', [RoleRequestController::class, 'index'])->name('solicitudes.index');

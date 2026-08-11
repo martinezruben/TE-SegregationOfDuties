@@ -47,7 +47,7 @@ export default function AppLayout({ title, header, children }: PropsWithChildren
                     <UserMenu />
                 </header>
 
-                <main className="mx-auto w-full max-w-screen-2xl px-4 py-4 sm:px-6 sm:py-6 lg:px-10">{children}</main>
+                <main className="mx-auto w-full max-w-[1800px] px-4 py-4 sm:px-6 sm:py-6 lg:px-10 xl:px-12">{children}</main>
             </div>
 
             <Toaster richColors position="top-right" />

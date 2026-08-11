@@ -271,7 +271,7 @@ El `AppLayout` (persistent layout de Inertia) contiene Sidebar + Topbar y envuel
   * `id`, `name`, `email` (unique), `password`, `is_active` (bool), `email_verified_at`, `two_factor_secret` (nullable), `remember_token`, `created_at`, `updated_at`, `deleted_at`
   * Sus roles/permisos se gestionan vía RBAC (spatie, §7.4). No tienen cargo ni área (no son sujetos de validación).
 * **`managed_users` (Usuarios Gestionados — la población gobernada, sin login)**
-  * `id`, `external_id` (**ID** de negocio, unique), `igg` (**IGG**, unique), `name`, `area_id` (FK areas), `job_position_id` (FK job_positions), `is_active` (bool), `created_at`, `updated_at`, `deleted_at`
+  * `id`, `external_id` (**ID** de negocio, unique), `igg` (**IGG**, unique), `name`, `area_id` (FK areas), `job_position_id` (FK job_positions), `supervisor_id` (FK **users** — su **jefe/supervisor**, agente que puede autorizar; nullable, §8.4.5), `is_active` (bool), `created_at`, `updated_at`, `deleted_at`
   * Sobre estos usuarios se construye la "Foto", se crean solicitudes y se aplican las validaciones SoD y de cargo.
 
 ### 7.2 Catálogos y Reglas de Negocio
@@ -311,9 +311,11 @@ Al validar un rol para un usuario gestionado, el motor consulta las reglas en es
 * **`role_requests`**
   * `id`, `managed_user_id` (FK managed_users — usuario gestionado que recibe el rol), `requested_role_id` (FK, nullable para modificación de rol), `type` (Enum: `asignacion`, `movimiento`, `modificacion_rol`), `payload` (json — detalle del cambio, ej. rol de origen/destino o campos modificados del rol), `status` (Enum: `pendiente`, `en_aprobacion`, `aprobado`, `rechazado`, `cancelado`, `auto_aprobado`), `requester_id` (FK **users** — agente que lo solicita), `justification` (texto — motivo de negocio), `has_sod_conflict` (bool), `is_major` (bool — requiere *autorización mayor*), `auto_resolved` (bool — resuelta por reglas automáticas), `created_at`
 * **`request_approvals`** — Flujo dinámico de aprobación (los pasos concretos)
-  * `id`, `role_request_id` (FK), `approver_id` (FK, nullable si el paso se resuelve por rol/ámbito), `approver_role` (string — rol/ámbito requerido, ej. `owner_app`, `jefe`, `seguridad`), `step_order` (int), `status` (Enum: `pendiente`, `aprobado`, `rechazado`, `omitido`), `is_auto` (bool — paso resuelto automáticamente), `comments`, `resolved_at`, `resolved_by` (FK, nullable)
+  * `id`, `role_request_id` (FK), `approver_id` (FK, nullable si el paso se resuelve por rol/ámbito), `approver_role` (string — rol/ámbito requerido, ej. `owner_app`, `jefe`, `autorizador`, `seguridad`), `reasons` (json — motivos que **consolida** ese paso, §8.4.5), `step_order` (int), `status` (Enum: `pendiente`, `aprobado`, `rechazado`, `omitido`), `is_auto` (bool — paso resuelto automáticamente), `comments`, `resolved_at`, `resolved_by` (FK, nullable)
 * **`request_sod_findings`** *(deja constancia de los conflictos detectados en la solicitud)*
   * `id`, `role_request_id` (FK), `conflicting_role_id` (FK), `sod_matrix_id` (FK), `risk_level`
+* **`authorization_rules`** — Matriz de autorizaciones configurable (§8.4.5): quién autoriza según el disparador
+  * `id`, `name`, `trigger_type` (Enum: `sod_risk`, `application`, `cargo_misalignment`), `risk_level` (nullable — `alto|medio|bajo`, solo `sod_risk`), `application_id` (FK, nullable — alcance / clave para `application`), `authorizer_type` (Enum: `fixed`, `supervisor`), `authorizer_id` (FK **users**, nullable si es `supervisor`), `is_active`
 
 ### 7.4 RBAC y Menú Configurable
 
@@ -439,6 +441,25 @@ En ese caso se registra `status = auto_aprobado`, se crea un `request_approvals`
 * **Anti-self-approval:** el motor nunca asigna como aprobador al `requester_id` ni al beneficiario; si por ámbito coincidiera, escala al siguiente nivel.
 * La aprobación del **último paso** dispara la actualización de la "Foto" (`user_role`) —o la aplicación del cambio de rol— dentro de una transacción, y notifica a solicitante y beneficiario.
 * Recordatorios automáticos (Scheduler) para pasos vencidos según SLA.
+
+#### 8.4.5 Matriz de Autorizaciones configurable (quién autoriza)
+
+Además del árbol por defecto (§8.4.2), el sistema incluye una **matriz de autorizaciones configurable** (`autorizaciones.*`, menú *Segregación → Autorizadores*) que define **quién** autoriza según el **disparador** de la solicitud. Cada regla (`authorization_rules`) tiene:
+
+* **Disparador** (`trigger_type`):
+  * `sod_risk` — por **criticidad de la matriz** (riesgo del conflicto SoD): `alto` un autorizador, `medio` otro, `bajo` otro.
+  * `application` — por **aplicación** (toda solicitud de esa app requiere ese autorizador; anula la auto-aprobación).
+  * `cargo_misalignment` — por **desalineación con el cargo** (cuando el cargo no permite el rol).
+* **Alcance opcional:** una regla `sod_risk` o `cargo_misalignment` puede limitarse a una `application_id` concreta (o aplicar a todas).
+* **Autorizador** (`authorizer_type`):
+  * `fixed` — una **persona fija** (agente).
+  * `supervisor` — **su supervisor**: el **jefe** del usuario gestionado (`managed_users.supervisor_id`, §7.1).
+
+**Consolidación:** al armar el flujo, todos los disparadores que resuelvan al **mismo autorizador** se **agrupan en un solo paso** (con la lista de motivos que cubre). No se autoriza conflicto por conflicto: **una autorización general por autorizador basta** para todos sus motivos en esa solicitud.
+
+**Supervisor sin asignar:** si una regla exige "su supervisor" y el usuario gestionado no tiene jefe, el **Simulador lo advierte** (para asignarlo antes de solicitar) y, si aun así se crea la solicitud, el paso se **deriva al Gestor de Seguridad** como respaldo y se marca `supervisor_missing` en el detalle.
+
+Si **ninguna** regla aplica, se usa el **flujo por defecto** de §8.4.2. El servicio `AuthorizationResolver` resuelve y consolida; `ApprovalWorkflowBuilder` construye los pasos. Todo queda auditado.
 
 ### 8.5 Módulo de Gestión de Agentes, Roles y Permisos (RBAC)
 

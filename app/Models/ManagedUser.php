@@ -17,7 +17,7 @@ class ManagedUser extends Model implements Auditable
     use SoftDeletes;
     use \OwenIt\Auditing\Auditable;
 
-    protected $fillable = ['external_id', 'igg', 'name', 'area_id', 'job_position_id', 'is_active'];
+    protected $fillable = ['external_id', 'igg', 'name', 'area_id', 'job_position_id', 'supervisor_id', 'is_active'];
 
     protected $casts = ['is_active' => 'boolean'];
 
@@ -29,6 +29,12 @@ class ManagedUser extends Model implements Auditable
     public function jobPosition(): BelongsTo
     {
         return $this->belongsTo(JobPosition::class);
+    }
+
+    /** Jefe / supervisor (agente con login que puede autorizar). */
+    public function supervisor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'supervisor_id');
     }
 
     /** La "Foto": roles de negocio que posee actualmente. */

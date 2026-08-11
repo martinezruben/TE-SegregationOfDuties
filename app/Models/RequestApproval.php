@@ -12,12 +12,13 @@ class RequestApproval extends Model implements Auditable
     use \OwenIt\Auditing\Auditable;
 
     protected $fillable = [
-        'role_request_id', 'approver_id', 'approver_role', 'step_order',
+        'role_request_id', 'approver_id', 'approver_role', 'reasons', 'step_order',
         'status', 'is_auto', 'comments', 'resolved_at', 'resolved_by',
     ];
 
     protected $casts = [
         'status' => ApprovalStatus::class,
+        'reasons' => 'array',
         'is_auto' => 'boolean',
         'resolved_at' => 'datetime',
     ];
