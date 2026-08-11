@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 
 import AppLayout from '@/Layouts/AppLayout';
 import { Badge } from '@/Components/ui/badge';
@@ -67,7 +67,11 @@ export default function SolicitudesIndex({ solicitudes }: Props) {
                             )}
                             {solicitudes.data.map((s) => (
                                 <TableRow key={s.id}>
-                                    <TableCell className="text-muted-foreground">{s.id}</TableCell>
+                                    <TableCell>
+                                        <Link href={route('solicitudes.show', s.id)} className="font-medium text-primary underline-offset-2 hover:underline">
+                                            #{s.id}
+                                        </Link>
+                                    </TableCell>
                                     <TableCell>
                                         <div className="font-medium">{s.user}</div>
                                         <div className="font-mono text-xs text-muted-foreground">{s.igg}</div>
