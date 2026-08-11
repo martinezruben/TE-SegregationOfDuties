@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Ban, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Ban, CheckCircle2, Clock, MessageSquare, ShieldAlert, Zap } from 'lucide-react';
 
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/button';
@@ -212,6 +212,74 @@ export default function SolicitudShow({ solicitud: s, canApprove }: Props) {
                                 ))}
                             </TableBody>
                         </Table>
+                    </CardContent>
+                </Card>
+
+                {/* Bitácora / timeline de la autorización */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base">Bitácora de la autorización</CardTitle>
+                        <CardDescription>Qué decidió cada autorizador, con su comentario y fecha.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ol className="relative space-y-6 border-l pl-6">
+                            {s.approvals.map((a) => {
+                                const resolved = a.status === 'aprobado' || a.status === 'rechazado';
+                                const dot =
+                                    a.status === 'aprobado'
+                                        ? 'bg-green-600 text-white'
+                                        : a.status === 'rechazado'
+                                          ? 'bg-destructive text-white'
+                                          : a.status === 'omitido'
+                                            ? 'bg-muted text-muted-foreground'
+                                            : 'bg-background text-muted-foreground ring-1 ring-border';
+                                const Icon = a.is_auto
+                                    ? Zap
+                                    : a.status === 'aprobado'
+                                      ? CheckCircle2
+                                      : a.status === 'rechazado'
+                                        ? Ban
+                                        : Clock;
+                                const verb =
+                                    a.status === 'aprobado'
+                                        ? a.is_auto
+                                            ? 'Aprobado automáticamente'
+                                            : 'Aprobó'
+                                        : a.status === 'rechazado'
+                                          ? 'Rechazó'
+                                          : a.status === 'omitido'
+                                            ? 'Omitido'
+                                            : 'En espera de decisión';
+
+                                return (
+                                    <li key={a.step_order} className="ml-1">
+                                        <span className={`absolute -left-[13px] flex size-6 items-center justify-center rounded-full ${dot}`}>
+                                            <Icon className="size-3.5" />
+                                        </span>
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                            <span className="text-xs font-medium text-muted-foreground">Paso {a.step_order}</span>
+                                            <span className="font-medium">{a.approver ?? (a.is_auto ? 'Sistema' : 'Sin asignar')}</span>
+                                            <Badge variant="secondary" className="text-[10px]">
+                                                {roleLabel[a.approver_role] ?? a.approver_role}
+                                            </Badge>
+                                            {a.is_current && <Badge variant="info" className="text-[10px]">actual</Badge>}
+                                        </div>
+                                        <p className="mt-0.5 text-sm">
+                                            <span className={a.status === 'rechazado' ? 'text-destructive' : resolved ? 'text-green-700' : 'text-muted-foreground'}>
+                                                {verb}
+                                            </span>
+                                            {a.resolved_at && <span className="text-muted-foreground"> · {a.resolved_at}</span>}
+                                        </p>
+                                        {a.comments && (
+                                            <div className="mt-1.5 flex gap-2 rounded-md border bg-muted/40 p-2 text-sm">
+                                                <MessageSquare className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                                                <p className="italic">"{a.comments}"</p>
+                                            </div>
+                                        )}
+                                    </li>
+                                );
+                            })}
+                        </ol>
                     </CardContent>
                 </Card>
 
