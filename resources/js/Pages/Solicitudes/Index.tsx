@@ -1,10 +1,14 @@
+import { useMemo, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { Eye } from 'lucide-react';
+import { Eye, Filter, RotateCcw } from 'lucide-react';
 
 import AppLayout from '@/Layouts/AppLayout';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
+import { Input } from '@/Components/ui/input';
+import { Label } from '@/Components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 import { PageProps } from '@/types';
 
@@ -32,9 +36,64 @@ interface Paginated<T> {
     next_page_url: string | null;
 }
 
-type Props = PageProps<{ solicitudes: Paginated<Solicitud> }>;
+interface Option {
+    id: number;
+    name: string;
+}
+interface RoleOption extends Option {
+    application_id: number;
+}
+interface Filters {
+    search: string;
+    id: number | null;
+    application_id: number | null;
+    role_id: number | null;
+    status: string | null;
+    sod: string | null;
+    date_from: string | null;
+    date_to: string | null;
+}
 
-export default function SolicitudesIndex({ solicitudes }: Props) {
+type Props = PageProps<{
+    solicitudes: Paginated<Solicitud>;
+    filters: Filters;
+    opciones: {
+        aplicaciones: Option[];
+        roles: RoleOption[];
+        estados: { value: string; label: string }[];
+    };
+}>;
+
+const ALL = 'all';
+
+export default function SolicitudesIndex({ solicitudes, filters, opciones }: Props) {
+    const [f, setF] = useState<Filters>(filters);
+    const set = <K extends keyof Filters>(k: K, v: Filters[K]) => setF((p) => ({ ...p, [k]: v }));
+
+    const roles = useMemo(
+        () => (f.application_id ? opciones.roles.filter((r) => r.application_id === f.application_id) : opciones.roles),
+        [f.application_id, opciones.roles],
+    );
+
+    const apply = (over: Partial<Filters> = {}) => {
+        const merged = { ...f, ...over };
+        setF(merged);
+        const params: Record<string, string> = {};
+        Object.entries(merged).forEach(([k, v]) => {
+            if (v !== null && v !== '' && v !== undefined) params[k] = String(v);
+        });
+        router.get(route('solicitudes.index'), params, { preserveState: true, preserveScroll: true });
+    };
+
+    const reset = () => {
+        const cleared: Filters = {
+            search: '', id: null, application_id: null, role_id: null,
+            status: null, sod: null, date_from: null, date_to: null,
+        };
+        setF(cleared);
+        router.get(route('solicitudes.index'), {}, { preserveState: true, preserveScroll: true });
+    };
+
     return (
         <AppLayout title="Solicitudes">
             <Head title="Solicitudes" />
@@ -45,6 +104,106 @@ export default function SolicitudesIndex({ solicitudes }: Props) {
                     <CardDescription>Historial y estado de las solicitudes de asignación de roles.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    {/* Filtros */}
+                    <div className="grid grid-cols-1 gap-3 rounded-lg border bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Usuario (nombre / IGG / ID)</Label>
+                            <Input
+                                value={f.search}
+                                onChange={(e) => set('search', e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && apply()}
+                                placeholder="Escribe y Enter…"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">N° de solicitud</Label>
+                            <Input
+                                value={f.id ?? ''}
+                                onChange={(e) => set('id', e.target.value ? Number(e.target.value.replace(/\D/g, '')) : null)}
+                                onKeyDown={(e) => e.key === 'Enter' && apply()}
+                                placeholder="Ej. 12"
+                                inputMode="numeric"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Aplicación</Label>
+                            <Select
+                                value={f.application_id ? String(f.application_id) : ALL}
+                                onValueChange={(v) => set('application_id', v === ALL ? null : Number(v))}
+                            >
+                                <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={ALL}>Todas</SelectItem>
+                                    {opciones.aplicaciones.map((a) => (
+                                        <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Rol</Label>
+                            <Select
+                                value={f.role_id ? String(f.role_id) : ALL}
+                                onValueChange={(v) => set('role_id', v === ALL ? null : Number(v))}
+                            >
+                                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={ALL}>Todos</SelectItem>
+                                    {roles.map((r) => (
+                                        <SelectItem key={r.id} value={String(r.id)}>{r.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Estado</Label>
+                            <Select
+                                value={f.status ?? ALL}
+                                onValueChange={(v) => set('status', v === ALL ? null : v)}
+                            >
+                                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={ALL}>Todos</SelectItem>
+                                    {opciones.estados.map((e) => (
+                                        <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Conflicto SoD</Label>
+                            <Select
+                                value={f.sod ?? ALL}
+                                onValueChange={(v) => set('sod', v === ALL ? null : v)}
+                            >
+                                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={ALL}>Todos</SelectItem>
+                                    <SelectItem value="1">Con conflicto</SelectItem>
+                                    <SelectItem value="0">Sin conflicto</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Desde (fecha)</Label>
+                            <Input type="date" value={f.date_from ?? ''} onChange={(e) => set('date_from', e.target.value || null)} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Hasta (fecha)</Label>
+                            <Input type="date" value={f.date_to ?? ''} onChange={(e) => set('date_to', e.target.value || null)} />
+                        </div>
+
+                        <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
+                            <Button onClick={() => apply()}>
+                                <Filter className="size-4" /> Aplicar filtros
+                            </Button>
+                            <Button variant="outline" onClick={reset}>
+                                <RotateCcw className="size-4" /> Limpiar
+                            </Button>
+                            <span className="ml-auto self-center text-sm text-muted-foreground">{solicitudes.total} resultado(s)</span>
+                        </div>
+                    </div>
+
                     <Table>
                         <TableHeader>
                             <TableRow>
