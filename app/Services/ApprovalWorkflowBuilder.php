@@ -38,6 +38,13 @@ class ApprovalWorkflowBuilder
 
         $request->has_sod_conflict = $eval['has_conflict'];
 
+        // Snapshot de lo validado, para mostrarlo en la pantalla de aprobación.
+        $request->payload = [
+            'cargo' => $eval['cargo'],
+            'has_conflict' => $eval['has_conflict'],
+            'reasons' => $this->reasons($request, $eval),
+        ];
+
         // Auto-aprobación: cargo permitido, sin conflicto y no es autorización mayor.
         if ($eval['cargo']['allowed'] && ! $eval['has_conflict'] && ! $request->is_major) {
             $request->status = RequestStatus::AutoAprobado;
@@ -88,6 +95,34 @@ class ApprovalWorkflowBuilder
                 'source' => 'request',
             ],
         ]);
+    }
+
+    /**
+     * Razones (legibles) por las que la solicitud requiere aprobación.
+     *
+     * @param  array<string, mixed>  $eval
+     * @return list<string>
+     */
+    private function reasons(RoleRequest $request, array $eval): array
+    {
+        $reasons = [];
+
+        if ($request->is_major) {
+            $reasons[] = 'Es una modificación de rol (autorización mayor).';
+        }
+        if (! $eval['cargo']['allowed']) {
+            $reasons[] = $eval['cargo']['status'] === 'no_permitido'
+                ? 'El cargo del usuario tiene el rol como NO permitido.'
+                : 'El cargo del usuario no tiene el rol como permitido (sin regla).';
+        }
+        if ($eval['has_conflict']) {
+            $reasons[] = 'Genera conflicto(s) de Segregación de Funciones con la foto actual.';
+        }
+        if (($request->requestedRole->application?->criticality_level?->value ?? 'media') === 'alta') {
+            $reasons[] = 'La aplicación es de criticidad alta.';
+        }
+
+        return $reasons;
     }
 
     /**

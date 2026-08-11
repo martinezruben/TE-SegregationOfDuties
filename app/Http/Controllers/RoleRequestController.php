@@ -29,6 +29,73 @@ class RoleRequestController extends Controller
         ]);
     }
 
+    public function show(Request $request, RoleRequest $solicitud): Response
+    {
+        abort_unless((bool) $request->user()?->can('solicitudes.ver'), 403);
+
+        $solicitud->load([
+            'managedUser:id,name,igg,area_id,job_position_id',
+            'managedUser.area:id,name',
+            'managedUser.jobPosition:id,name',
+            'requestedRole:id,name,application_id',
+            'requestedRole.application:id,name,criticality_level',
+            'requester:id,name',
+            'approvals.approver:id,name',
+            'findings.conflictingRole:id,name',
+        ]);
+
+        $current = $solicitud->currentStep();
+        $user = $request->user();
+        $canApprove = $user->can('solicitudes.autorizar')
+            && (! $solicitud->is_major || $user->can('solicitudes.autorizar_mayor'))
+            && $current !== null
+            && $current->approver_id === $user->id;
+
+        $payload = $solicitud->payload ?? [];
+
+        return Inertia::render('Solicitudes/Show', [
+            'solicitud' => [
+                'id' => $solicitud->id,
+                'type' => $solicitud->type->value,
+                'status' => $solicitud->status->value,
+                'status_label' => $solicitud->status->label(),
+                'status_variant' => $solicitud->status->badgeVariant(),
+                'is_major' => $solicitud->is_major,
+                'auto_resolved' => $solicitud->auto_resolved,
+                'has_sod_conflict' => $solicitud->has_sod_conflict,
+                'justification' => $solicitud->justification,
+                'created_at' => $solicitud->created_at?->format('Y-m-d H:i'),
+                'requester' => $solicitud->requester?->name,
+                'user' => [
+                    'name' => $solicitud->managedUser?->name,
+                    'igg' => $solicitud->managedUser?->igg,
+                    'area' => $solicitud->managedUser?->area?->name,
+                    'cargo' => $solicitud->managedUser?->jobPosition?->name,
+                ],
+                'role' => $solicitud->requestedRole?->name,
+                'application' => $solicitud->requestedRole?->application?->name,
+                'criticality' => $solicitud->requestedRole?->application?->criticality_level?->value,
+                'cargo' => $payload['cargo'] ?? null,
+                'reasons' => $payload['reasons'] ?? [],
+                'findings' => $solicitud->findings->map(fn ($f) => [
+                    'role' => $f->conflictingRole?->name,
+                    'risk_level' => $f->risk_level,
+                ]),
+                'approvals' => $solicitud->approvals->map(fn ($a) => [
+                    'step_order' => $a->step_order,
+                    'approver_role' => $a->approver_role,
+                    'approver' => $a->approver?->name,
+                    'status' => $a->status->value,
+                    'is_auto' => $a->is_auto,
+                    'comments' => $a->comments,
+                    'resolved_at' => $a->resolved_at?->format('Y-m-d H:i'),
+                    'is_current' => $current !== null && $a->id === $current->id,
+                ]),
+            ],
+            'canApprove' => $canApprove,
+        ]);
+    }
+
     public function store(Request $request, ApprovalWorkflowBuilder $builder): RedirectResponse
     {
         abort_unless((bool) $request->user()?->can('solicitudes.crear'), 403);

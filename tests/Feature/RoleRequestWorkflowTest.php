@@ -136,4 +136,28 @@ class RoleRequestWorkflowTest extends TestCase
         $this->actingAs($this->owner)->post("/solicitudes/{$req->id}/rechazar")->assertRedirect();
         $this->assertSame(RequestStatus::Rechazado, $req->fresh()->status);
     }
+
+    public function test_request_stores_validation_snapshot_in_payload(): void
+    {
+        ['position' => $p, 'crear' => $crear, 'aprobar' => $aprobar, 'user' => $u] = $this->scenario('alta');
+        $u->roles()->attach($crear->id, ['assigned_at' => now(), 'source' => 'import']);
+        $p->roleRules()->attach($aprobar->id, ['rule_type' => 'permitido']);
+        SodConflict::create(['role_a_id' => min($crear->id, $aprobar->id), 'role_b_id' => max($crear->id, $aprobar->id), 'risk_level' => 'alto']);
+
+        $this->actingAs($this->admin)->post('/solicitudes', ['managed_user_id' => $u->id, 'requested_role_id' => $aprobar->id]);
+        $req = RoleRequest::first();
+
+        $this->assertSame('permitido', $req->payload['cargo']['status']);
+        $this->assertTrue($req->payload['has_conflict']);
+        $this->assertNotEmpty($req->payload['reasons']);
+    }
+
+    public function test_show_detail_is_visible_to_authorized_user(): void
+    {
+        ['aprobar' => $aprobar, 'user' => $u] = $this->scenario('media');
+        $this->actingAs($this->admin)->post('/solicitudes', ['managed_user_id' => $u->id, 'requested_role_id' => $aprobar->id]);
+        $req = RoleRequest::first();
+
+        $this->actingAs($this->admin)->get("/solicitudes/{$req->id}")->assertOk();
+    }
 }

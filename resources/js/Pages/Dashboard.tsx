@@ -1,5 +1,5 @@
 import AppLayout from '@/Layouts/AppLayout';
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -91,6 +91,9 @@ export default function Dashboard({ kpis, pendientes }: Props) {
                                         ) : (
                                             <Badge variant="secondary">Sin conflicto</Badge>
                                         )}
+                                        <Button size="sm" variant="outline" asChild>
+                                            <Link href={route('solicitudes.show', p.id)}>Ver detalle</Link>
+                                        </Button>
                                         {canApprove && (
                                             <>
                                                 <Button size="sm" variant="success" onClick={() => act(p.id, 'aprobar')}>

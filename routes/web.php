@@ -69,6 +69,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Solicitudes y autorizaciones
     Route::get('solicitudes', [RoleRequestController::class, 'index'])->name('solicitudes.index');
+    Route::get('solicitudes/{solicitud}', [RoleRequestController::class, 'show'])->name('solicitudes.show');
     Route::post('solicitudes', [RoleRequestController::class, 'store'])->name('solicitudes.store');
     Route::post('solicitudes/{solicitud}/aprobar', [RoleRequestController::class, 'approve'])->name('solicitudes.approve');
     Route::post('solicitudes/{solicitud}/rechazar', [RoleRequestController::class, 'reject'])->name('solicitudes.reject');
