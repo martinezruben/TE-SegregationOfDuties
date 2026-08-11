@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { Eye } from 'lucide-react';
 
 import AppLayout from '@/Layouts/AppLayout';
 import { Badge } from '@/Components/ui/badge';
@@ -55,12 +56,13 @@ export default function SolicitudesIndex({ solicitudes }: Props) {
                                 <TableHead>Estado</TableHead>
                                 <TableHead>Solicitante</TableHead>
                                 <TableHead>Fecha</TableHead>
+                                <TableHead className="w-16 text-right">Detalle</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {solicitudes.data.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                                    <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
                                         Aún no hay solicitudes.
                                     </TableCell>
                                 </TableRow>
@@ -90,6 +92,13 @@ export default function SolicitudesIndex({ solicitudes }: Props) {
                                     </TableCell>
                                     <TableCell className="text-muted-foreground">{s.requester}</TableCell>
                                     <TableCell className="text-xs text-muted-foreground">{s.created_at}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="ghost" size="icon" asChild aria-label="Ver detalle y bitácora">
+                                            <Link href={route('solicitudes.show', s.id)}>
+                                                <Eye className="size-4" />
+                                            </Link>
+                                        </Button>
+                                    </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
