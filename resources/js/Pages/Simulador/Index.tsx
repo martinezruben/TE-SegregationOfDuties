@@ -61,7 +61,10 @@ export default function SimuladorIndex({ usuarios, aplicaciones, filters, evalua
 
     const roles = useMemo(() => aplicaciones.find((a) => String(a.id) === appId)?.roles ?? [], [appId, aplicaciones]);
     const { can } = usePermissions();
-    const { flash } = usePage<PageProps>().props;
+    const page = usePage<PageProps>().props;
+    const flash = page.flash;
+    const errors = (page as { errors?: Record<string, string> }).errors ?? {};
+    const errorMessages = Object.values(errors);
     const [submitting, setSubmitting] = useState(false);
 
     const simulate = () => {
@@ -74,7 +77,7 @@ export default function SimuladorIndex({ usuarios, aplicaciones, filters, evalua
         setSubmitting(true);
         router.post(
             route('solicitudes.store'),
-            { managed_user_id: target.user.id, role_id: target.role.id },
+            { managed_user_id: target.user.id, requested_role_id: target.role.id },
             { preserveScroll: true, onFinish: () => setSubmitting(false) },
         );
     };
@@ -223,6 +226,20 @@ export default function SimuladorIndex({ usuarios, aplicaciones, filters, evalua
                                             <Link href={route('solicitudes.index')} className="font-medium underline">
                                                 Ver solicitudes
                                             </Link>
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
+
+                                {errorMessages.length > 0 && (
+                                    <Alert variant="destructive">
+                                        <Ban className="size-4" />
+                                        <AlertTitle>No se pudo crear la solicitud</AlertTitle>
+                                        <AlertDescription>
+                                            <ul className="list-disc pl-4">
+                                                {errorMessages.map((m, i) => (
+                                                    <li key={i}>{m}</li>
+                                                ))}
+                                            </ul>
                                         </AlertDescription>
                                     </Alert>
                                 )}
