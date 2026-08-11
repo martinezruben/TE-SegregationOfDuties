@@ -48,7 +48,7 @@ export default function BitacoraIndex({ audits, filters }: Props) {
         <AppLayout title="Bitácora">
             <Head title="Bitácora" />
 
-            <Card className="mx-auto max-w-6xl">
+            <Card className="w-full">
                 <CardHeader>
                     <CardTitle>Bitácora de auditoría</CardTitle>
                     <CardDescription>Registro inmutable de cambios en el sistema.</CardDescription>

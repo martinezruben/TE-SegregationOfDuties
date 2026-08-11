@@ -38,7 +38,7 @@ export default function SolicitudesIndex({ solicitudes }: Props) {
         <AppLayout title="Solicitudes">
             <Head title="Solicitudes" />
 
-            <Card className="mx-auto max-w-6xl">
+            <Card className="w-full">
                 <CardHeader>
                     <CardTitle>Solicitudes de acceso</CardTitle>
                     <CardDescription>Historial y estado de las solicitudes de asignación de roles.</CardDescription>

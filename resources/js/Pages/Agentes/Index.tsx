@@ -89,7 +89,7 @@ export default function AgentesIndex({ agentes, roles, filters, currentUserId, c
         <AppLayout title="Agentes">
             <Head title="Agentes" />
 
-            <Card className="mx-auto max-w-5xl">
+            <Card className="w-full">
                 <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
                     <div>
                         <CardTitle>Agentes / Operadores</CardTitle>

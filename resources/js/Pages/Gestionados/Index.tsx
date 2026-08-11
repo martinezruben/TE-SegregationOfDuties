@@ -123,7 +123,7 @@ export default function GestionadosIndex({ usuarios, areas, cargos, filters, can
         <AppLayout title="Usuarios gestionados">
             <Head title="Usuarios gestionados" />
 
-            <Card className="mx-auto max-w-6xl">
+            <Card className="w-full">
                 <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
                     <div>
                         <CardTitle>Usuarios gestionados</CardTitle>

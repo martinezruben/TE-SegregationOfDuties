@@ -129,7 +129,7 @@ export default function AplicacionesIndex({ aplicaciones, owners, criticidades, 
         <AppLayout title="Aplicaciones">
             <Head title="Aplicaciones" />
 
-            <Card className="mx-auto max-w-5xl">
+            <Card className="w-full">
                 <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
                     <div>
                         <CardTitle>Aplicaciones</CardTitle>

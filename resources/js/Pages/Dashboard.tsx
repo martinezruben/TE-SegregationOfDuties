@@ -47,7 +47,7 @@ export default function Dashboard({ kpis, pendientes }: Props) {
         <AppLayout title="Dashboard">
             <Head title="Dashboard" />
 
-            <div className="mx-auto max-w-7xl space-y-6">
+            <div className="w-full space-y-6">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {cards.map((k) => (
                         <Card key={k.label}>
