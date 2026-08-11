@@ -18,14 +18,44 @@ class RoleRequestController extends Controller
     {
         abort_unless((bool) $request->user()?->can('solicitudes.ver'), 403);
 
+        $filters = [
+            'search' => trim((string) $request->string('search')),
+            'id' => (int) ltrim((string) $request->string('id'), '#') ?: null,
+            'application_id' => $request->integer('application_id') ?: null,
+            'role_id' => $request->integer('role_id') ?: null,
+            'status' => in_array($request->string('status')->toString(), array_column(RequestStatus::cases(), 'value'), true)
+                ? $request->string('status')->toString() : null,
+            'sod' => in_array($request->string('sod')->toString(), ['1', '0'], true) ? $request->string('sod')->toString() : null,
+            'date_from' => $request->date('date_from')?->format('Y-m-d'),
+            'date_to' => $request->date('date_to')?->format('Y-m-d'),
+        ];
+
         $solicitudes = RoleRequest::query()
             ->with(['managedUser:id,name,igg', 'requestedRole:id,name,application_id', 'requestedRole.application:id,name', 'requester:id,name'])
+            ->when($filters['search'], fn ($q, $s) => $q->whereHas('managedUser', fn ($w) => $w
+                ->where('name', 'like', "%{$s}%")
+                ->orWhere('igg', 'like', "%{$s}%")
+                ->orWhere('external_id', 'like', "%{$s}%")))
+            ->when($filters['id'], fn ($q, $v) => $q->where('id', $v))
+            ->when($filters['role_id'], fn ($q, $v) => $q->where('requested_role_id', $v))
+            ->when($filters['application_id'], fn ($q, $v) => $q->whereHas('requestedRole', fn ($w) => $w->where('application_id', $v)))
+            ->when($filters['status'], fn ($q, $v) => $q->where('status', $v))
+            ->when($filters['sod'] !== null, fn ($q) => $q->where('has_sod_conflict', $filters['sod'] === '1'))
+            ->when($filters['date_from'], fn ($q, $v) => $q->whereDate('created_at', '>=', $v))
+            ->when($filters['date_to'], fn ($q, $v) => $q->whereDate('created_at', '<=', $v))
             ->orderByDesc('id')
             ->paginate(15)
+            ->withQueryString()
             ->through(fn (RoleRequest $r) => $this->serialize($r));
 
         return Inertia::render('Solicitudes/Index', [
             'solicitudes' => $solicitudes,
+            'filters' => $filters,
+            'opciones' => [
+                'aplicaciones' => \App\Models\Application::orderBy('name')->get(['id', 'name']),
+                'roles' => \App\Models\Role::with('application:id,name')->orderBy('name')->get(['id', 'name', 'application_id']),
+                'estados' => array_map(fn (RequestStatus $s) => ['value' => $s->value, 'label' => $s->label()], RequestStatus::cases()),
+            ],
         ]);
     }
 
