@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { AlertTriangle, CheckCircle2, FlaskConical, Ban } from 'lucide-react';
 
 import AppLayout from '@/Layouts/AppLayout';
@@ -61,6 +61,8 @@ export default function SimuladorIndex({ usuarios, aplicaciones, filters, evalua
 
     const roles = useMemo(() => aplicaciones.find((a) => String(a.id) === appId)?.roles ?? [], [appId, aplicaciones]);
     const { can } = usePermissions();
+    const { flash } = usePage<PageProps>().props;
+    const [submitting, setSubmitting] = useState(false);
 
     const simulate = () => {
         if (!userId || !roleId) return;
@@ -69,10 +71,12 @@ export default function SimuladorIndex({ usuarios, aplicaciones, filters, evalua
 
     const createRequest = () => {
         if (!target) return;
-        router.post(route('solicitudes.store'), {
-            managed_user_id: target.user.id,
-            role_id: target.role.id,
-        });
+        setSubmitting(true);
+        router.post(
+            route('solicitudes.store'),
+            { managed_user_id: target.user.id, role_id: target.role.id },
+            { preserveScroll: true, onFinish: () => setSubmitting(false) },
+        );
     };
 
     const cargoLabel = {
@@ -206,9 +210,21 @@ export default function SimuladorIndex({ usuarios, aplicaciones, filters, evalua
                                 )}
 
                                 {can('solicitudes.crear') && !evaluation.already_assigned && (
-                                    <Button onClick={createRequest} className="w-full">
-                                        Crear solicitud
+                                    <Button onClick={createRequest} disabled={submitting} className="w-full">
+                                        {submitting ? 'Creando…' : 'Crear solicitud'}
                                     </Button>
+                                )}
+
+                                {flash?.success && (
+                                    <Alert variant="success">
+                                        <CheckCircle2 className="size-4" />
+                                        <AlertTitle>{flash.success}</AlertTitle>
+                                        <AlertDescription>
+                                            <Link href={route('solicitudes.index')} className="font-medium underline">
+                                                Ver solicitudes
+                                            </Link>
+                                        </AlertDescription>
+                                    </Alert>
                                 )}
                             </>
                         )}

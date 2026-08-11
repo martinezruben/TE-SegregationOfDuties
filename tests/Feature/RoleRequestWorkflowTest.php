@@ -68,7 +68,7 @@ class RoleRequestWorkflowTest extends TestCase
 
         $this->actingAs($this->admin)
             ->post('/solicitudes', ['managed_user_id' => $u->id, 'requested_role_id' => $role->id])
-            ->assertRedirect(route('solicitudes.index'));
+            ->assertRedirect();
 
         $req = RoleRequest::first();
         $this->assertSame(RequestStatus::AutoAprobado, $req->status);

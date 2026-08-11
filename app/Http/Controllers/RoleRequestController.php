@@ -51,10 +51,11 @@ class RoleRequestController extends Controller
         $builder->build($roleRequest);
 
         $msg = $roleRequest->fresh()->status === RequestStatus::AutoAprobado
-            ? 'Solicitud auto-aprobada (cargo permitido y sin conflicto).'
-            : 'Solicitud creada y enviada a autorización.';
+            ? "Solicitud #{$roleRequest->id} auto-aprobada (cargo permitido y sin conflicto)."
+            : "Solicitud #{$roleRequest->id} creada y enviada a autorización.";
 
-        return redirect()->route('solicitudes.index')->with('success', $msg);
+        // Volvemos a la pantalla de origen (p. ej. el Simulador) para mostrar el aviso.
+        return back()->with('success', $msg);
     }
 
     public function approve(Request $request, RoleRequest $solicitud, ApprovalWorkflowBuilder $builder): RedirectResponse
