@@ -25,6 +25,7 @@ class ManagedUserRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'area_id' => ['required', 'exists:areas,id'],
             'job_position_id' => ['required', 'exists:job_positions,id'],
+            'supervisor_id' => ['nullable', 'exists:users,id'],
             'is_active' => ['boolean'],
         ];
     }

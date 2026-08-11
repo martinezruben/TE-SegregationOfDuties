@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Application;
 use App\Models\Area;
+use App\Models\AuthorizationRule;
 use App\Models\JobPosition;
 use App\Models\ManagedUser;
 use App\Models\Option;
@@ -20,6 +21,7 @@ class DemoDataSeeder extends Seeder
     public function run(): void
     {
         $owner = User::query()->orderBy('id')->first();
+        $seguridad = User::role('Gestor de Seguridad')->orderBy('id')->first() ?? $owner;
 
         // Áreas
         $finanzas = Area::create(['name' => 'Finanzas', 'code' => 'FIN']);
@@ -71,18 +73,43 @@ class DemoDataSeeder extends Seeder
         $analistaFin->roleRules()->attach($aprobarPago->id, ['rule_type' => 'no_permitido', 'notes' => 'Segregación por cargo']);
         $genAnalista->roleRules()->attach($consultarFin->id, ['rule_type' => 'permitido']);
 
-        // Usuarios gestionados (población gobernada)
+        // Usuarios gestionados (población gobernada). María y Juan tienen jefe
+        // asignado (el owner); Ana queda sin jefe para demostrar el aviso.
         $u1 = ManagedUser::create([
             'external_id' => 'EMP-10245', 'igg' => 'IGG10245', 'name' => 'María López',
             'area_id' => $finanzas->id, 'job_position_id' => $analistaFin->id,
+            'supervisor_id' => $owner?->id,
         ]);
         $u2 = ManagedUser::create([
             'external_id' => 'EMP-10388', 'igg' => 'IGG10388', 'name' => 'Juan Pérez',
             'area_id' => $compras->id, 'job_position_id' => $analistaCom->id,
+            'supervisor_id' => $owner?->id,
         ]);
         ManagedUser::create([
             'external_id' => 'EMP-10502', 'igg' => 'IGG10502', 'name' => 'Ana Ruiz',
             'area_id' => $ti->id, 'job_position_id' => $jefeFin->id,
+        ]);
+
+        // Matriz de autorizaciones configurable (context.md §8.5):
+        //  - Conflicto SoD de riesgo alto  -> Gestor de Seguridad
+        //  - Conflicto SoD de riesgo medio -> su supervisor (jefe)
+        //  - Desalineación con el cargo     -> Gestor de Seguridad
+        //  - Toda solicitud del ERP Finanzas-> owner de la aplicación
+        AuthorizationRule::create([
+            'name' => 'Riesgo alto → Seguridad', 'trigger_type' => 'sod_risk', 'risk_level' => 'alto',
+            'authorizer_type' => 'fixed', 'authorizer_id' => $seguridad?->id,
+        ]);
+        AuthorizationRule::create([
+            'name' => 'Riesgo medio → Supervisor', 'trigger_type' => 'sod_risk', 'risk_level' => 'medio',
+            'authorizer_type' => 'supervisor',
+        ]);
+        AuthorizationRule::create([
+            'name' => 'Desalineación de cargo → Seguridad', 'trigger_type' => 'cargo_misalignment',
+            'authorizer_type' => 'fixed', 'authorizer_id' => $seguridad?->id,
+        ]);
+        AuthorizationRule::create([
+            'name' => 'ERP Finanzas → Owner', 'trigger_type' => 'application', 'application_id' => $erp->id,
+            'authorizer_type' => 'fixed', 'authorizer_id' => $owner?->id,
         ]);
 
         // "Foto" inicial: María ya tiene Crear Proveedor

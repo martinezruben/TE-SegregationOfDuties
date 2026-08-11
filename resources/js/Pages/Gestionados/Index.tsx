@@ -36,8 +36,10 @@ interface Managed {
     is_active: boolean;
     area_id: number;
     job_position_id: number;
+    supervisor_id: number | null;
     area?: Option | null;
     job_position?: Option | null;
+    supervisor?: Option | null;
 }
 
 interface Paginated<T> {
@@ -53,11 +55,14 @@ type Props = PageProps<{
     usuarios: Paginated<Managed>;
     areas: Option[];
     cargos: Option[];
+    supervisores: Option[];
     filters: { search: string };
     can: { create: boolean; update: boolean; delete: boolean };
 }>;
 
-export default function GestionadosIndex({ usuarios, areas, cargos, filters, can }: Props) {
+const NONE = 'none';
+
+export default function GestionadosIndex({ usuarios, areas, cargos, supervisores, filters, can }: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [formOpen, setFormOpen] = useState(false);
     const [editing, setEditing] = useState<Managed | null>(null);
@@ -77,8 +82,14 @@ export default function GestionadosIndex({ usuarios, areas, cargos, filters, can
         name: string;
         area_id: string;
         job_position_id: string;
+        supervisor_id: string;
         is_active: boolean;
-    }>({ external_id: '', igg: '', name: '', area_id: '', job_position_id: '', is_active: true });
+    }>({ external_id: '', igg: '', name: '', area_id: '', job_position_id: '', supervisor_id: NONE, is_active: true });
+
+    const toPayload = (data: typeof form.data) => ({
+        ...data,
+        supervisor_id: data.supervisor_id === NONE ? '' : data.supervisor_id,
+    });
 
     const openCreate = () => {
         setEditing(null);
@@ -95,6 +106,7 @@ export default function GestionadosIndex({ usuarios, areas, cargos, filters, can
             name: u.name,
             area_id: String(u.area_id),
             job_position_id: String(u.job_position_id),
+            supervisor_id: u.supervisor_id ? String(u.supervisor_id) : NONE,
             is_active: u.is_active,
         });
         form.clearErrors();
@@ -104,6 +116,7 @@ export default function GestionadosIndex({ usuarios, areas, cargos, filters, can
     const submit = (e: FormEvent) => {
         e.preventDefault();
         const opts = { preserveScroll: true, onSuccess: () => setFormOpen(false) };
+        form.transform((data) => toPayload(data as typeof form.data));
         if (editing) {
             form.put(route('gestionados.update', editing.id), opts);
         } else {
@@ -154,6 +167,7 @@ export default function GestionadosIndex({ usuarios, areas, cargos, filters, can
                                 <TableHead>Nombre</TableHead>
                                 <TableHead>Área</TableHead>
                                 <TableHead>Cargo</TableHead>
+                                <TableHead>Jefe / Supervisor</TableHead>
                                 <TableHead>Estado</TableHead>
                                 <TableHead className="w-24 text-right">Acciones</TableHead>
                             </TableRow>
@@ -161,7 +175,7 @@ export default function GestionadosIndex({ usuarios, areas, cargos, filters, can
                         <TableBody>
                             {usuarios.data.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                                    <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                                         No hay usuarios que coincidan.
                                     </TableCell>
                                 </TableRow>
@@ -173,6 +187,9 @@ export default function GestionadosIndex({ usuarios, areas, cargos, filters, can
                                     <TableCell className="font-medium">{u.name}</TableCell>
                                     <TableCell className="text-muted-foreground">{u.area?.name ?? '—'}</TableCell>
                                     <TableCell className="text-muted-foreground">{u.job_position?.name ?? '—'}</TableCell>
+                                    <TableCell className="text-muted-foreground">
+                                        {u.supervisor?.name ?? <span className="text-amber-600">Sin asignar</span>}
+                                    </TableCell>
                                     <TableCell>
                                         <Badge variant={u.is_active ? 'success' : 'secondary'}>
                                             {u.is_active ? 'Activo' : 'Inactivo'}
@@ -279,6 +296,26 @@ export default function GestionadosIndex({ usuarios, areas, cargos, filters, can
                                     </SelectContent>
                                 </Select>
                                 {form.errors.job_position_id && <p className="text-sm text-destructive">{form.errors.job_position_id}</p>}
+                            </div>
+                            <div className="space-y-1.5 sm:col-span-2">
+                                <Label>Jefe / Supervisor (agente autorizador)</Label>
+                                <Select value={form.data.supervisor_id} onValueChange={(v) => form.setData('supervisor_id', v)}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Sin supervisor" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={NONE}>Sin supervisor</SelectItem>
+                                        {supervisores.map((s) => (
+                                            <SelectItem key={s.id} value={String(s.id)}>
+                                                {s.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">
+                                    Se usa cuando una regla de autorización indica "su supervisor".
+                                </p>
+                                {form.errors.supervisor_id && <p className="text-sm text-destructive">{form.errors.supervisor_id}</p>}
                             </div>
                             <label className="flex items-center gap-2 text-sm sm:col-span-2">
                                 <input

@@ -18,6 +18,7 @@ interface Finding {
 interface Approval {
     step_order: number;
     approver_role: string;
+    reasons: string[];
     approver: string | null;
     status: 'pendiente' | 'aprobado' | 'rechazado' | 'omitido';
     is_auto: boolean;
@@ -43,6 +44,7 @@ interface Solicitud {
     criticality: 'baja' | 'media' | 'alta';
     cargo: { status: 'permitido' | 'no_permitido' | 'sin_regla'; allowed: boolean } | null;
     reasons: string[];
+    supervisor_missing: boolean;
     findings: Finding[];
     approvals: Approval[];
 }
@@ -59,7 +61,8 @@ const cargoLabel: Record<string, string> = {
 const roleLabel: Record<string, string> = {
     owner_app: 'Owner de la aplicación',
     seguridad: 'Gestor de Seguridad',
-    jefe: 'Jefe directo',
+    jefe: 'Su supervisor (jefe)',
+    autorizador: 'Autorizador designado',
     sistema: 'Sistema (automático)',
 };
 const apprVariant = (s: string) => (s === 'aprobado' ? 'success' : s === 'rechazado' ? 'destructive' : s === 'omitido' ? 'secondary' : 'warning');
@@ -75,7 +78,7 @@ export default function SolicitudShow({ solicitud: s, canApprove }: Props) {
         <AppLayout title={`Solicitud #${s.id}`}>
             <Head title={`Solicitud #${s.id}`} />
 
-            <div className="mx-auto max-w-3xl space-y-4">
+            <div className="mx-auto max-w-4xl space-y-4">
                 <div className="flex items-center justify-between">
                     <Button variant="ghost" size="sm" asChild>
                         <Link href={route('solicitudes.index')}>
@@ -145,6 +148,17 @@ export default function SolicitudShow({ solicitud: s, canApprove }: Props) {
                             </Alert>
                         )}
 
+                        {s.supervisor_missing && (
+                            <Alert variant="warning">
+                                <ShieldAlert className="size-4" />
+                                <AlertTitle>Sin jefe/supervisor asignado</AlertTitle>
+                                <AlertDescription>
+                                    Una regla exige la autorización de "su supervisor" pero el usuario no lo tiene
+                                    definido; el paso se derivó a Seguridad como respaldo.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
                         {/* Por qué requiere aprobación */}
                         {s.reasons.length > 0 && (
                             <div>
@@ -183,6 +197,13 @@ export default function SolicitudShow({ solicitud: s, canApprove }: Props) {
                                         <TableCell>
                                             {roleLabel[a.approver_role] ?? a.approver_role}
                                             {a.is_current && <Badge variant="info" className="ml-2">actual</Badge>}
+                                            {a.reasons.length > 0 && (
+                                                <ul className="mt-1 list-disc pl-4 text-xs text-muted-foreground">
+                                                    {a.reasons.map((r, i) => (
+                                                        <li key={i}>{r}</li>
+                                                    ))}
+                                                </ul>
+                                            )}
                                         </TableCell>
                                         <TableCell className="text-muted-foreground">{a.approver ?? (a.is_auto ? '—' : 'Sin asignar')}</TableCell>
                                         <TableCell><Badge variant={apprVariant(a.status) as never}>{a.status}</Badge></TableCell>
