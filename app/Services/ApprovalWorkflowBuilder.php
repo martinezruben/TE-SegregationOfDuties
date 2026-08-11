@@ -103,6 +103,7 @@ class ApprovalWorkflowBuilder
                 'assigned_at' => now(),
                 'assigned_by' => $request->requester_id,
                 'source' => 'request',
+                'role_request_id' => $request->id,
             ],
         ]);
     }

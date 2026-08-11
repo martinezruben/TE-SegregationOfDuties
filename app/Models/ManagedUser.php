@@ -41,7 +41,7 @@ class ManagedUser extends Model implements Auditable
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class, 'user_role')
-            ->withPivot(['assigned_at', 'assigned_by', 'source', 'expires_at'])
+            ->withPivot(['assigned_at', 'assigned_by', 'source', 'expires_at', 'role_request_id'])
             ->withTimestamps();
     }
 }

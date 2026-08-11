@@ -50,6 +50,7 @@ class MenuSeeder extends Seeder
         $child2(['label' => 'Autorizadores', 'icon' => 'user-check', 'route' => 'autorizaciones.index', 'permission_name' => 'autorizaciones.ver']);
         $child2(['label' => 'Simulador', 'icon' => 'flask-conical', 'route' => 'simulador.index', 'permission_name' => 'simulador.ver']);
         $child2(['label' => 'Solicitudes', 'icon' => 'file-check', 'route' => 'solicitudes.index', 'permission_name' => 'solicitudes.ver']);
+        $child2(['label' => 'Reporte de accesos', 'icon' => 'table-2', 'route' => 'reportes.accesos', 'permission_name' => 'reportes.ver']);
 
         // Grupo: Administración
         $admin = $make(['label' => 'Administración', 'icon' => 'settings', 'permission_name' => null]);
