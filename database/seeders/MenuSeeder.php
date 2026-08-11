@@ -6,8 +6,11 @@ use App\Models\Menu;
 use Illuminate\Database\Seeder;
 
 /**
- * Estructura inicial del menú lateral jerárquico (context.md §8.6-8.7).
+ * Estructura del menú lateral jerárquico (context.md §8.6-8.7).
  * `permission_name` (tipo `ver`) controla la visibilidad de cada opción.
+ *
+ * Idempotente: usa updateOrCreate por (parent_id, label), de modo que puede
+ * re-ejecutarse con seguridad para agregar/actualizar ítems sin duplicar.
  */
 class MenuSeeder extends Seeder
 {
@@ -15,7 +18,27 @@ class MenuSeeder extends Seeder
     {
         $order = 0;
         $make = function (array $attrs) use (&$order): Menu {
-            return Menu::create(array_merge(['order' => $order++, 'is_active' => true], $attrs));
+            $label = $attrs['label'];
+            unset($attrs['label']);
+
+            return Menu::updateOrCreate(
+                ['parent_id' => null, 'label' => $label],
+                array_merge(['order' => $order++, 'is_active' => true], $attrs),
+            );
+        };
+
+        $childOf = function (Menu $parent) {
+            $sub = 0;
+
+            return function (array $attrs) use ($parent, &$sub): Menu {
+                $label = $attrs['label'];
+                unset($attrs['label']);
+
+                return Menu::updateOrCreate(
+                    ['parent_id' => $parent->id, 'label' => $label],
+                    array_merge(['order' => $sub++, 'is_active' => true], $attrs),
+                );
+            };
         };
 
         $make([
@@ -25,13 +48,7 @@ class MenuSeeder extends Seeder
 
         // Grupo: Catálogos
         $catalogos = $make(['label' => 'Catálogos', 'icon' => 'folder', 'permission_name' => null]);
-        $sub = 0;
-        $child = function (array $attrs) use (&$sub, $catalogos): Menu {
-            return Menu::create(array_merge(
-                ['parent_id' => $catalogos->id, 'order' => $sub++, 'is_active' => true],
-                $attrs
-            ));
-        };
+        $child = $childOf($catalogos);
         $child(['label' => 'Áreas', 'icon' => 'map', 'route' => 'areas.index', 'permission_name' => 'areas.ver']);
         $child(['label' => 'Cargos', 'icon' => 'badge', 'route' => 'cargos.index', 'permission_name' => 'cargos.ver']);
         $child(['label' => 'Usuarios gestionados', 'icon' => 'users', 'route' => 'gestionados.index', 'permission_name' => 'gestionados.ver']);
@@ -39,13 +56,7 @@ class MenuSeeder extends Seeder
 
         // Grupo: SoD
         $sod = $make(['label' => 'Segregación (SoD)', 'icon' => 'shield-alert', 'permission_name' => null]);
-        $sub2 = 0;
-        $child2 = function (array $attrs) use (&$sub2, $sod): Menu {
-            return Menu::create(array_merge(
-                ['parent_id' => $sod->id, 'order' => $sub2++, 'is_active' => true],
-                $attrs
-            ));
-        };
+        $child2 = $childOf($sod);
         $child2(['label' => 'Matriz de conflictos', 'icon' => 'grid-3x3', 'route' => 'matriz.index', 'permission_name' => 'matriz.ver']);
         $child2(['label' => 'Autorizadores', 'icon' => 'user-check', 'route' => 'autorizaciones.index', 'permission_name' => 'autorizaciones.ver']);
         $child2(['label' => 'Simulador', 'icon' => 'flask-conical', 'route' => 'simulador.index', 'permission_name' => 'simulador.ver']);
@@ -54,13 +65,7 @@ class MenuSeeder extends Seeder
 
         // Grupo: Administración
         $admin = $make(['label' => 'Administración', 'icon' => 'settings', 'permission_name' => null]);
-        $sub3 = 0;
-        $child3 = function (array $attrs) use (&$sub3, $admin): Menu {
-            return Menu::create(array_merge(
-                ['parent_id' => $admin->id, 'order' => $sub3++, 'is_active' => true],
-                $attrs
-            ));
-        };
+        $child3 = $childOf($admin);
         $child3(['label' => 'Agentes', 'icon' => 'user-cog', 'route' => 'agentes.index', 'permission_name' => 'usuarios.ver']);
         $child3(['label' => 'Roles y permisos', 'icon' => 'key-round', 'route' => 'roles-permisos.index', 'permission_name' => 'roles.ver']);
         $child3(['label' => 'Menús', 'icon' => 'list-tree', 'route' => 'menus.index', 'permission_name' => 'menus.ver']);
