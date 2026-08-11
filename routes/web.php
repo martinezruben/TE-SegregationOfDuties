@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\ApplicationController;
+use App\Http\Controllers\AccessReportController;
 use App\Http\Controllers\AreaController;
 use App\Http\Controllers\AuthorizationRuleController;
 use App\Http\Controllers\AuditController;
@@ -88,6 +89,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Administración: Roles y permisos (RBAC de plataforma)
     Route::get('roles-permisos', [PlatformRoleController::class, 'index'])->name('roles-permisos.index');
     Route::put('roles-permisos/{role}', [PlatformRoleController::class, 'update'])->name('roles-permisos.update');
+
+    // Reportes
+    Route::get('reportes/accesos', [AccessReportController::class, 'index'])->name('reportes.accesos');
+    Route::get('reportes/accesos/export', [AccessReportController::class, 'export'])->name('reportes.accesos.export');
 
     // Bitácora (auditoría)
     Route::get('bitacora', [AuditController::class, 'index'])->name('bitacora.index');

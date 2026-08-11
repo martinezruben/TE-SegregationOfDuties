@@ -502,6 +502,17 @@ Pantalla de administración (permiso `menus.*`) para **configurar el propio men�
   * **Indicadores** (tarjetas/gráficos): pendientes por antigüedad/SLA, solicitudes por estado, conflictos detectados (ver §12).
   * Cada tarjeta respeta los permisos `ver` del usuario; si no tiene el permiso, la tarjeta no aparece.
 
+### 8.9 Reporte de Accesos
+
+Reporte integral de la **"foto"** (permiso `reportes.ver`, exportación con `reportes.exportar`, menú *Segregación → Reporte de accesos*). Lista **todos los usuarios gestionados** con las aplicaciones/roles/opciones que poseen, enriquecido con el **número de solicitud** y las **fechas de solicitud y aprobación** para saber cuándo se pidió y cuándo se otorgó cada acceso.
+
+* **Nivel de detalle** (selector): `app` (usuario → aplicación), `rol` (usuario → aplicación → rol) u `opc` (usuario → aplicación → rol → opción).
+* **Filtros** (todos combinables): búsqueda por nombre/IGG/ID, aplicación, **app + rol** (para hallar quién tiene un rol), área, cargo, origen del acceso (`request`/`import`/`manual`) y **rango de fechas** de asignación.
+* **Trazabilidad:** cada asignación de la foto se enlaza a la solicitud que la otorgó (`user_role.role_request_id`). La fecha de aprobación es el último `resolved_at` aprobado del flujo.
+* **Exportación CSV** (con BOM para acentos en Excel) que respeta los filtros y el nivel activos.
+
+Servido por `AccessReportController`; los accesos importados/manuales aparecen sin número de solicitud.
+
 ---
 
 ## 9. Seguridad
