@@ -192,7 +192,7 @@ El admin adopta **shadcn/ui** como base del sistema de diseño: componentes acce
 * **Densidad de administración:** UI compacta y legible, orientada a tablas y formularios; espaciados moderados.
 * **Feedback inmediato:** estados de carga (skeletons), toasts de éxito/error (sonner), validación inline.
 * **Responsivo:** sidebar colapsable a drawer en móvil; tablas con scroll horizontal contenido.
-* **Tema claro/oscuro** conmutan mediante variables CSS (ver tokens).
+* **Tema claro/oscuro** conmutan mediante variables CSS (ver tokens). Implementado: selector en el topbar y en las pantallas de acceso (claro / oscuro / sistema), preferencia en `localStorage` y script en `app.blade.php` que aplica la clase `dark` antes del primer render (sin parpadeo).
 
 ### 6A.2 Design tokens (CSS variables — estilo shadcn "new-york")
 Se definen en `resources/css/app.css` como variables HSL y se consumen desde Tailwind (`tailwind.config`). Paleta base neutra + un acento de marca; los estados de riesgo tienen color propio y consistente:
@@ -254,6 +254,8 @@ El `AppLayout` (persistent layout de Inertia) contiene Sidebar + Topbar y envuel
 * Componentes shadcn en `resources/js/Components/ui`; componentes de dominio en `resources/js/Components/*`; páginas en `resources/js/Pages/*`.
 * Estilo shadcn **"new-york"**, `baseColor: slate`, con `cn()` (clsx + tailwind-merge) para componer clases.
 * Iconografía única: **lucide-react**.
+* Todas las pantallas (incluidas login, recuperación de contraseña, 2FA y perfil) usan solo componentes shadcn/ui, `GuestLayout` (sesión no iniciada) o `AppLayout` (con sesión) y `FormField` para etiqueta + control + error. Los componentes heredados de Breeze (`PrimaryButton`, `TextInput`, `Modal`, etc.) se eliminaron: no se deben reintroducir.
+* Colores solo con tokens semánticos (`bg-background`, `text-success`, `text-destructive`…), nunca con grises/verdes fijos de Tailwind, para que el tema oscuro funcione sin ajustes.
 * Tipado estricto (TypeScript); props de página tipadas y `can` (permisos) tipado.
 * Formato/lint: ESLint + Prettier (front), Pint/Larastan (back).
 

@@ -6,6 +6,7 @@ import AppLayout from '@/Layouts/AppLayout';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Checkbox } from '@/Components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/Components/ui/dialog';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -185,10 +186,10 @@ export default function Index({
                                     </Select>
                                 </div>
                             </div>
-                            <label className="flex items-center gap-2 text-sm">
-                                <input type="checkbox" checked={form.data.only_conflicts} onChange={(e) => form.setData('only_conflicts', e.target.checked)} />
-                                Solo accesos que participan en conflictos SoD
-                            </label>
+                            <div className="flex items-center gap-2">
+                                <Checkbox id="only_conflicts" checked={form.data.only_conflicts} onCheckedChange={(v) => form.setData('only_conflicts', v === true)} />
+                                <Label htmlFor="only_conflicts" className="font-normal">Solo accesos que participan en conflictos SoD</Label>
+                            </div>
                             <div className="flex justify-end gap-2">
                                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
                                 <Button type="submit" disabled={form.processing}>Crear y notificar revisores</Button>

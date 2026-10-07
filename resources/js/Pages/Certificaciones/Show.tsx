@@ -15,6 +15,7 @@ import {
 } from '@/Components/ui/alert-dialog';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
+import { Checkbox } from '@/Components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -238,7 +239,7 @@ export default function Show({ campana, items, filters, resumen, revisores, can 
                                     <TableRow>
                                         {decidable.length > 0 && (
                                             <TableHead className="w-10">
-                                                <input type="checkbox" aria-label="Seleccionar todos" checked={allSelected} onChange={(e) => setSelected(e.target.checked ? decidable.map((i) => i.id) : [])} />
+                                                <Checkbox aria-label="Seleccionar todos" checked={allSelected} onCheckedChange={(v) => setSelected(v === true ? decidable.map((i) => i.id) : [])} />
                                             </TableHead>
                                         )}
                                         <TableHead>Usuario</TableHead>
@@ -258,7 +259,7 @@ export default function Show({ campana, items, filters, resumen, revisores, can 
                                             {decidable.length > 0 && (
                                                 <TableCell>
                                                     {i.can_decide && (
-                                                        <input type="checkbox" aria-label={`Seleccionar ${i.user_name} ${i.role_name}`} checked={selected.includes(i.id)} onChange={(e) => setSelected((s) => (e.target.checked ? [...s, i.id] : s.filter((x) => x !== i.id)))} />
+                                                        <Checkbox aria-label={`Seleccionar ${i.user_name} ${i.role_name}`} checked={selected.includes(i.id)} onCheckedChange={(v) => setSelected((s) => (v === true ? [...s, i.id] : s.filter((x) => x !== i.id)))} />
                                                     )}
                                                 </TableCell>
                                             )}

@@ -1,11 +1,12 @@
-import DangerButton from '@/Components/DangerButton';
-import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
-import SecondaryButton from '@/Components/SecondaryButton';
-import TextInput from '@/Components/TextInput';
-import { useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
+import { useForm } from '@inertiajs/react';
+
+import { FormField } from '@/Components/app/FormField';
+import { Alert, AlertDescription } from '@/Components/ui/alert';
+import { Badge } from '@/Components/ui/badge';
+import { Button } from '@/Components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Input } from '@/Components/ui/input';
 
 export interface TwoFactorState {
     enabled: boolean;
@@ -16,13 +17,7 @@ export interface TwoFactorState {
     recoveryCodes: string[] | null;
 }
 
-export default function TwoFactorForm({
-    state,
-    className = '',
-}: {
-    state: TwoFactorState;
-    className?: string;
-}) {
+export default function TwoFactorForm({ state }: { state: TwoFactorState }) {
     const enable = useForm({});
     const confirm = useForm({ code: '' });
     const disable = useForm({ password: '' });
@@ -35,175 +30,136 @@ export default function TwoFactorForm({
 
     const submitConfirm: FormEventHandler = (e) => {
         e.preventDefault();
-        confirm.post(route('two-factor.confirm'), {
-            preserveScroll: true,
-            onSuccess: () => confirm.reset(),
-        });
+        confirm.post(route('two-factor.confirm'), { preserveScroll: true, onSuccess: () => confirm.reset() });
     };
 
     const submitDisable: FormEventHandler = (e) => {
         e.preventDefault();
-        disable.delete(route('two-factor.disable'), {
-            preserveScroll: true,
-            onFinish: () => disable.reset(),
-        });
+        disable.delete(route('two-factor.disable'), { preserveScroll: true, onFinish: () => disable.reset() });
     };
 
     const submitRegenerate: FormEventHandler = (e) => {
         e.preventDefault();
-        regenerate.post(route('two-factor.recovery-codes'), {
-            preserveScroll: true,
-            onFinish: () => regenerate.reset(),
-        });
+        regenerate.post(route('two-factor.recovery-codes'), { preserveScroll: true, onFinish: () => regenerate.reset() });
     };
 
     return (
-        <section className={className}>
-            <header>
-                <h2 className="text-lg font-medium text-gray-900">
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
                     Autenticación en dos pasos
-                </h2>
-                <p className="mt-1 text-sm text-gray-600">
-                    Protege tu cuenta con un código temporal (TOTP) generado por
-                    una app como Google Authenticator, Authy o 1Password.
-                </p>
-            </header>
+                    {state.enabled && <Badge variant="success">Activa</Badge>}
+                </CardTitle>
+                <CardDescription>
+                    Protege tu cuenta con un código temporal (TOTP) de una app como Google Authenticator, Authy o 1Password.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                {state.required && !state.enabled && (
+                    <Alert variant="warning">
+                        <AlertDescription>
+                            Tu rol requiere autenticación en dos pasos. Debes activarla para usar el resto del sistema.
+                        </AlertDescription>
+                    </Alert>
+                )}
 
-            {state.required && !state.enabled && (
-                <div
-                    role="alert"
-                    className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800"
-                >
-                    Tu rol requiere autenticación en dos pasos. Debes activarla
-                    para usar el resto del sistema.
-                </div>
-            )}
-
-            {state.recoveryCodes && state.recoveryCodes.length > 0 && (
-                <div className="mt-4 rounded-md border border-gray-300 bg-gray-50 p-4">
-                    <p className="text-sm font-medium text-gray-900">
-                        Guarda estos códigos de recuperación en un lugar seguro.
-                        Cada uno sirve una sola vez y no volverán a mostrarse.
-                    </p>
-                    <ul className="mt-2 grid grid-cols-2 gap-1 font-mono text-sm text-gray-800">
-                        {state.recoveryCodes.map((c) => (
-                            <li key={c}>{c}</li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-
-            {!state.enabled && !state.pending && (
-                <form onSubmit={submitEnable} className="mt-6">
-                    <PrimaryButton disabled={enable.processing}>
-                        Activar 2FA
-                    </PrimaryButton>
-                </form>
-            )}
-
-            {state.pending && state.qrCode && (
-                <form onSubmit={submitConfirm} className="mt-6 max-w-sm space-y-4">
-                    <p className="text-sm text-gray-600">
-                        Escanea el código QR con tu app autenticadora e ingresa
-                        el código de 6 dígitos para confirmar.
-                    </p>
-                    <div
-                        className="inline-block rounded border bg-white p-2"
-                        aria-label="Código QR para configurar 2FA"
-                        dangerouslySetInnerHTML={{ __html: state.qrCode }}
-                    />
-                    {state.secret && (
-                        <p className="text-xs text-gray-600">
-                            ¿No puedes escanear? Clave manual:{' '}
-                            <span className="font-mono">{state.secret}</span>
+                {state.recoveryCodes && state.recoveryCodes.length > 0 && (
+                    <div className="rounded-md border bg-muted/40 p-4">
+                        <p className="text-sm font-medium">
+                            Guarda estos códigos de recuperación en un lugar seguro. Cada uno sirve una sola vez y no volverán a
+                            mostrarse.
                         </p>
-                    )}
-                    <div>
-                        <InputLabel htmlFor="two_factor_code" value="Código" />
-                        <TextInput
-                            id="two_factor_code"
-                            inputMode="numeric"
-                            autoComplete="one-time-code"
-                            value={confirm.data.code}
-                            className="mt-1 block w-full"
-                            onChange={(e) =>
-                                confirm.setData('code', e.target.value)
-                            }
-                        />
-                        <InputError
-                            message={confirm.errors.code}
-                            className="mt-2"
-                        />
+                        <ul className="mt-2 grid grid-cols-2 gap-1 font-mono text-sm">
+                            {state.recoveryCodes.map((c) => (
+                                <li key={c}>{c}</li>
+                            ))}
+                        </ul>
                     </div>
-                    <PrimaryButton disabled={confirm.processing}>
-                        Confirmar y activar
-                    </PrimaryButton>
-                </form>
-            )}
+                )}
 
-            {state.enabled && (
-                <div className="mt-6 space-y-6">
-                    <p className="text-sm font-medium text-green-700">
-                        La autenticación en dos pasos está activa.
-                    </p>
-
-                    <form onSubmit={submitRegenerate} className="max-w-sm space-y-2">
-                        <InputLabel
-                            htmlFor="regen_password"
-                            value="Contraseña actual (para regenerar códigos de recuperación)"
-                        />
-                        <TextInput
-                            id="regen_password"
-                            type="password"
-                            autoComplete="current-password"
-                            value={regenerate.data.password}
-                            className="block w-full"
-                            onChange={(e) =>
-                                regenerate.setData('password', e.target.value)
-                            }
-                        />
-                        <InputError
-                            message={regenerate.errors.password}
-                            className="mt-2"
-                        />
-                        <SecondaryButton
-                            type="submit"
-                            disabled={regenerate.processing}
-                        >
-                            Regenerar códigos de recuperación
-                        </SecondaryButton>
+                {!state.enabled && !state.pending && (
+                    <form onSubmit={submitEnable}>
+                        <Button type="submit" disabled={enable.processing}>
+                            Activar 2FA
+                        </Button>
                     </form>
+                )}
 
-                    {!state.required && (
-                        <form onSubmit={submitDisable} className="max-w-sm space-y-2">
-                            <InputLabel
-                                htmlFor="disable_password"
-                                value="Contraseña actual (para desactivar 2FA)"
+                {state.pending && state.qrCode && (
+                    <form onSubmit={submitConfirm} className="max-w-sm space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                            Escanea el código QR con tu app autenticadora e ingresa el código de 6 dígitos para confirmar.
+                        </p>
+                        {/* El QR siempre es oscuro sobre fondo blanco para que lo lea cualquier cámara, también en tema oscuro. */}
+                        <div
+                            className="inline-block rounded border bg-white p-2"
+                            aria-label="Código QR para configurar 2FA"
+                            dangerouslySetInnerHTML={{ __html: state.qrCode }}
+                        />
+                        {state.secret && (
+                            <p className="text-xs text-muted-foreground">
+                                ¿No puedes escanear? Clave manual: <span className="font-mono">{state.secret}</span>
+                            </p>
+                        )}
+                        <FormField label="Código" htmlFor="two_factor_code" error={confirm.errors.code}>
+                            <Input
+                                id="two_factor_code"
+                                inputMode="numeric"
+                                autoComplete="one-time-code"
+                                value={confirm.data.code}
+                                onChange={(e) => confirm.setData('code', e.target.value)}
                             />
-                            <TextInput
-                                id="disable_password"
-                                type="password"
-                                autoComplete="current-password"
-                                value={disable.data.password}
-                                className="block w-full"
-                                onChange={(e) =>
-                                    disable.setData('password', e.target.value)
-                                }
-                            />
-                            <InputError
-                                message={disable.errors.password}
-                                className="mt-2"
-                            />
-                            <DangerButton
-                                type="submit"
-                                disabled={disable.processing}
+                        </FormField>
+                        <Button type="submit" disabled={confirm.processing}>
+                            Confirmar y activar
+                        </Button>
+                    </form>
+                )}
+
+                {state.enabled && (
+                    <div className="space-y-6">
+                        <form onSubmit={submitRegenerate} className="max-w-sm space-y-3">
+                            <FormField
+                                label="Contraseña actual (para regenerar los códigos de recuperación)"
+                                htmlFor="regen_password"
+                                error={regenerate.errors.password}
                             >
-                                Desactivar 2FA
-                            </DangerButton>
+                                <Input
+                                    id="regen_password"
+                                    type="password"
+                                    autoComplete="current-password"
+                                    value={regenerate.data.password}
+                                    onChange={(e) => regenerate.setData('password', e.target.value)}
+                                />
+                            </FormField>
+                            <Button type="submit" variant="outline" disabled={regenerate.processing}>
+                                Regenerar códigos de recuperación
+                            </Button>
                         </form>
-                    )}
-                </div>
-            )}
-        </section>
+
+                        {!state.required && (
+                            <form onSubmit={submitDisable} className="max-w-sm space-y-3">
+                                <FormField
+                                    label="Contraseña actual (para desactivar 2FA)"
+                                    htmlFor="disable_password"
+                                    error={disable.errors.password}
+                                >
+                                    <Input
+                                        id="disable_password"
+                                        type="password"
+                                        autoComplete="current-password"
+                                        value={disable.data.password}
+                                        onChange={(e) => disable.setData('password', e.target.value)}
+                                    />
+                                </FormField>
+                                <Button type="submit" variant="destructive" disabled={disable.processing}>
+                                    Desactivar 2FA
+                                </Button>
+                            </form>
+                        )}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
 }

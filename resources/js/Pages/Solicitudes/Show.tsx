@@ -265,7 +265,7 @@ export default function SolicitudShow({ solicitud: s, canApprove }: Props) {
                                             {a.is_current && <Badge variant="info" className="text-[10px]">actual</Badge>}
                                         </div>
                                         <p className="mt-0.5 text-sm">
-                                            <span className={a.status === 'rechazado' ? 'text-destructive' : resolved ? 'text-green-700' : 'text-muted-foreground'}>
+                                            <span className={a.status === 'rechazado' ? 'text-destructive' : resolved ? 'text-success' : 'text-muted-foreground'}>
                                                 {verb}
                                             </span>
                                             {a.resolved_at && <span className="text-muted-foreground"> · {a.resolved_at}</span>}

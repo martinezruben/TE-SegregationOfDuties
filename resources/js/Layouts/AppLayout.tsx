@@ -4,6 +4,7 @@ import { Menu as MenuIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { SidebarBrand, SidebarNav } from '@/Components/app/Sidebar';
+import { ThemeToggle } from '@/Components/app/ThemeToggle';
 import { NotificationBell } from '@/Components/app/NotificationBell';
 import { UserMenu } from '@/Components/app/UserMenu';
 import { Toaster } from '@/Components/ui/sonner';
@@ -45,6 +46,7 @@ export default function AppLayout({ title, header, children }: PropsWithChildren
                         {header ?? (title ? <h1 className="text-lg font-semibold">{title}</h1> : null)}
                     </div>
 
+                    <ThemeToggle />
                     <NotificationBell />
                     <UserMenu />
                 </header>
@@ -52,7 +54,7 @@ export default function AppLayout({ title, header, children }: PropsWithChildren
                 <main className="mx-auto w-full max-w-[1800px] px-4 py-4 sm:px-6 sm:py-6 lg:px-10 xl:px-12">{children}</main>
             </div>
 
-            <Toaster richColors position="top-right" />
+            <Toaster richColors position="bottom-right" />
         </div>
     );
 }
