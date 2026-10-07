@@ -31,6 +31,11 @@ class RequestApproval extends Model implements Auditable
         return $this->belongsTo(RoleRequest::class);
     }
 
+    public function resolver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'resolved_by');
+    }
+
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approver_id');

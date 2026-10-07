@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\StreamsCsv;
 use App\Models\ImportBatch;
 use App\Services\Import\FotoImporter;
 use App\Services\Import\Importer;
@@ -20,6 +21,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class ImportController extends Controller
 {
+    use StreamsCsv;
+
     private const PREVIEW_ROWS = 200;
 
     private const MAX_ERRORS = 500;
@@ -225,21 +228,5 @@ class ImportController extends Controller
     private function displayRow(array $row): array
     {
         return ['line' => $row['line'], 'status' => $row['status'], 'label' => $row['label'], 'message' => $row['message']];
-    }
-
-    /** CSV con BOM (acentos en Excel) y neutralización de fórmulas (=, +, -, @). */
-    private function csv(string $filename, array $headers, array $rows): StreamedResponse
-    {
-        $safe = fn ($v) => is_string($v) && $v !== '' && str_contains('=+-@', $v[0]) ? "'".$v : $v;
-
-        return response()->streamDownload(function () use ($headers, $rows, $safe) {
-            $out = fopen('php://output', 'w');
-            fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, $headers);
-            foreach ($rows as $row) {
-                fputcsv($out, array_map($safe, $row));
-            }
-            fclose($out);
-        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 }

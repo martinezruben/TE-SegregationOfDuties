@@ -565,9 +565,9 @@ Vía **Laravel Notifications** (canales `mail` + `database`, extensible a Slack/
 * Top aplicaciones y roles más solicitados.
 
 **Reportes exportables (Excel/PDF):**
-* **Reporte de Conflictos Activos:** usuarios que actualmente poseen combinaciones en conflicto (revisión periódica).
+* **Reporte de Conflictos Activos** *(implementado, *Segregación → Conflictos activos*)*: cruza a nivel SQL la foto vigente (excluye accesos expirados, usuarios/roles eliminados y pares inactivos) contra la matriz SoD. Cada conflicto indica si tiene **excepción formal** (una solicitud aprobada que registró ese mismo conflicto) o si vino por importación/carga manual **sin excepción**. Filtros: usuario, aplicación, área, cargo, riesgo y excepción; exporta CSV. El dashboard muestra el total a quien tenga `reportes.ver`.
 * **Matriz de Accesos por Usuario/Cargo/Aplicación.**
-* **Reporte de Excepciones:** accesos otorgados pese a conflicto SoD, con su justificación y aprobador.
+* **Reporte de Excepciones** *(implementado, *Segregación → Excepciones*)*: solicitudes aprobadas con conflicto SoD, con conflictos aceptados y riesgo máximo, justificación, solicitante, fecha y aprobadores con sus comentarios. Filtros: búsqueda, aplicación, riesgo y rango de fechas; exporta CSV.
 * **Reporte de Certificación de Accesos** (recertificación periódica).
 
 ---
