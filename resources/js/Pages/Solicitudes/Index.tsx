@@ -9,6 +9,7 @@ import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Combobox } from '@/Components/app/Combobox';
+import { DatePicker } from '@/Components/app/DatePicker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 import { PageProps } from '@/types';
@@ -183,12 +184,12 @@ export default function SolicitudesIndex({ solicitudes, filters, opciones }: Pro
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Desde (fecha)</Label>
-                            <Input type="date" value={f.date_from ?? ''} onChange={(e) => set('date_from', e.target.value || null)} />
+                            <Label htmlFor="filtro-date_from" className="text-xs">Desde (fecha)</Label>
+                            <DatePicker id="filtro-date_from" value={f.date_from} max={f.date_to ?? undefined} placeholder="Desde" onChange={(v) => set('date_from', v || null)} />
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Hasta (fecha)</Label>
-                            <Input type="date" value={f.date_to ?? ''} onChange={(e) => set('date_to', e.target.value || null)} />
+                            <Label htmlFor="filtro-date_to" className="text-xs">Hasta (fecha)</Label>
+                            <DatePicker id="filtro-date_to" value={f.date_to} min={f.date_from ?? undefined} placeholder="Hasta" onChange={(v) => set('date_to', v || null)} />
                         </div>
 
                         <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">

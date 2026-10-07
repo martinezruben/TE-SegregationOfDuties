@@ -3,6 +3,7 @@ import { Menu as MenuIcon } from 'lucide-react';
 import { PropsWithChildren, ReactNode, useEffect } from 'react';
 import { toast } from 'sonner';
 
+import { Breadcrumbs } from '@/Components/app/Breadcrumbs';
 import { CommandPalette } from '@/Components/app/CommandPalette';
 import { NotificationBell } from '@/Components/app/NotificationBell';
 import { SidebarBrand, SidebarNav } from '@/Components/app/Sidebar';
@@ -61,15 +62,15 @@ export default function AppLayout({
                             </SheetContent>
                         </Sheet>
 
-                        <div className="flex-1">
+                        <div className="min-w-0 flex-1">
+                            <Breadcrumbs title={title} />
                             {header ??
                                 (title ? (
-                                    <h1 className="text-lg font-semibold">
+                                    <h1 className="truncate text-lg font-semibold leading-tight">
                                         {title}
                                     </h1>
                                 ) : null)}
                         </div>
-
                         <CommandPalette />
                         <ThemeToggle />
                         <NotificationBell />
