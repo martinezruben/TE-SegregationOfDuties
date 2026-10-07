@@ -20,6 +20,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
+import { SwitchField } from '@/Components/app/SwitchField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { PageProps } from '@/types';
 
@@ -258,15 +259,7 @@ export default function CargosIndex({ cargos, genericos, filters, can }: Props) 
                                     onChange={(e) => form.setData('description', e.target.value)}
                                 />
                             </div>
-                            <label className="flex items-center gap-2 text-sm">
-                                <input
-                                    type="checkbox"
-                                    className="rounded border-input"
-                                    checked={form.data.is_generic}
-                                    onChange={(e) => form.setData('is_generic', e.target.checked)}
-                                />
-                                Es un cargo genérico (plantilla)
-                            </label>
+                            <SwitchField id="cargos-is_generic" label="Es un cargo genérico (plantilla)" checked={form.data.is_generic} onCheckedChange={(v) => form.setData('is_generic', v)} />
 
                             {!form.data.is_generic && (
                                 <div className="space-y-1.5">
@@ -293,15 +286,7 @@ export default function CargosIndex({ cargos, genericos, filters, can }: Props) 
                                 </div>
                             )}
 
-                            <label className="flex items-center gap-2 text-sm">
-                                <input
-                                    type="checkbox"
-                                    className="rounded border-input"
-                                    checked={form.data.is_active}
-                                    onChange={(e) => form.setData('is_active', e.target.checked)}
-                                />
-                                Activo
-                            </label>
+                            <SwitchField id="cargos-is_active" label="Activo" checked={form.data.is_active} onCheckedChange={(v) => form.setData('is_active', v)} />
                         </div>
 
                         <DialogFooter>

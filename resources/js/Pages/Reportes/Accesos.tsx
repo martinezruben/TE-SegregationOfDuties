@@ -9,6 +9,7 @@ import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
+import { Combobox } from '@/Components/app/Combobox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { PageProps } from '@/types';
 
@@ -180,19 +181,16 @@ export default function ReporteAccesos({ filas, filters, nivel, resumen, opcione
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Rol</Label>
-                            <Select
-                                value={f.role_id ? String(f.role_id) : ALL}
-                                onValueChange={(v) => set('role_id', v === ALL ? null : Number(v))}
-                            >
-                                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={ALL}>Todos</SelectItem>
-                                    {roles.map((r) => (
-                                        <SelectItem key={r.id} value={String(r.id)}>{r.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Label htmlFor="filtro-role_id" className="text-xs">Rol</Label>
+                            <Combobox
+                                id="filtro-role_id"
+                                value={f.role_id ? String(f.role_id) : ''}
+                                onChange={(v) => set('role_id', v === '' ? null : Number(v))}
+                                placeholder="Todos"
+                                clearLabel="Todos"
+                                searchPlaceholder="Buscar rol…"
+                                options={roles.map((r) => ({ value: String(r.id), label: r.name, description: opciones.aplicaciones.find((a) => a.id === r.application_id)?.name }))}
+                            />
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-xs">Área</Label>
@@ -210,19 +208,16 @@ export default function ReporteAccesos({ filas, filters, nivel, resumen, opcione
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Cargo</Label>
-                            <Select
-                                value={f.job_position_id ? String(f.job_position_id) : ALL}
-                                onValueChange={(v) => set('job_position_id', v === ALL ? null : Number(v))}
-                            >
-                                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={ALL}>Todos</SelectItem>
-                                    {opciones.cargos.map((c) => (
-                                        <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Label htmlFor="filtro-job_position_id" className="text-xs">Cargo</Label>
+                            <Combobox
+                                id="filtro-job_position_id"
+                                value={f.job_position_id ? String(f.job_position_id) : ''}
+                                onChange={(v) => set('job_position_id', v === '' ? null : Number(v))}
+                                placeholder="Todos"
+                                clearLabel="Todos"
+                                searchPlaceholder="Buscar cargo…"
+                                options={opciones.cargos.map((c) => ({ value: String(c.id), label: c.name }))}
+                            />
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-xs">Origen del acceso</Label>

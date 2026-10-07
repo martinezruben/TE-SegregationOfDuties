@@ -20,6 +20,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
+import { Combobox } from '@/Components/app/Combobox';
+import { SwitchField } from '@/Components/app/SwitchField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { PageProps } from '@/types';
 
@@ -273,31 +275,19 @@ export default function AplicacionesIndex({ aplicaciones, owners, criticidades, 
                                     {form.errors.criticality_level && <p className="text-sm text-destructive">{form.errors.criticality_level}</p>}
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label>Responsable (owner)</Label>
-                                    <Select value={form.data.owner_id} onValueChange={(v) => form.setData('owner_id', v)}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Sin asignar" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value={NONE}>Sin asignar</SelectItem>
-                                            {owners.map((o) => (
-                                                <SelectItem key={o.id} value={String(o.id)}>
-                                                    {o.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <Label htmlFor="aplicaciones-owner">Responsable (owner)</Label>
+                                    <Combobox
+                                        id="aplicaciones-owner"
+                                        value={form.data.owner_id === NONE ? '' : form.data.owner_id}
+                                        onChange={(v) => form.setData('owner_id', v === '' ? NONE : v)}
+                                        placeholder="Sin asignar"
+                                        clearLabel="Sin asignar"
+                                        searchPlaceholder="Buscar agente…"
+                                        options={owners.map((o) => ({ value: String(o.id), label: o.name }))}
+                                    />
                                 </div>
                             </div>
-                            <label className="flex items-center gap-2 text-sm">
-                                <input
-                                    type="checkbox"
-                                    className="rounded border-input"
-                                    checked={form.data.is_active}
-                                    onChange={(e) => form.setData('is_active', e.target.checked)}
-                                />
-                                Activa
-                            </label>
+                            <SwitchField id="aplicaciones-is_active" label="Activa" checked={form.data.is_active} onCheckedChange={(v) => form.setData('is_active', v)} />
                         </div>
 
                         <DialogFooter>

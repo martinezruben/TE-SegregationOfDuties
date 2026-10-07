@@ -8,6 +8,7 @@ import { Badge } from '@/Components/ui/badge';
 import { Label } from '@/Components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
+import { Combobox } from '@/Components/app/Combobox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { PageProps } from '@/types';
 
@@ -81,15 +82,16 @@ export default function CargoReglas({ cargo, reglas, aplicaciones, tipos }: Prop
                                 </Select>
                             </div>
                             <div className="space-y-1.5">
-                                <Label>Rol</Label>
-                                <Select value={form.data.role_id} onValueChange={(v) => form.setData('role_id', v)} disabled={!appId}>
-                                    <SelectTrigger><SelectValue placeholder="Rol…" /></SelectTrigger>
-                                    <SelectContent>
-                                        {roles.map((r) => (
-                                            <SelectItem key={r.id} value={String(r.id)}>{r.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Label htmlFor="regla-role">Rol</Label>
+                                <Combobox
+                                    id="regla-role"
+                                    value={form.data.role_id}
+                                    onChange={(v) => form.setData('role_id', v)}
+                                    disabled={!appId}
+                                    placeholder={appId ? 'Selecciona un rol…' : 'Elige la aplicación'}
+                                    searchPlaceholder="Buscar rol…"
+                                    options={roles.map((r) => ({ value: String(r.id), label: r.name }))}
+                                />
                             </div>
                             <div className="space-y-1.5">
                                 <Label>Tipo</Label>

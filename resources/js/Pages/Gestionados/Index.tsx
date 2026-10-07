@@ -20,6 +20,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
+import { Combobox } from '@/Components/app/Combobox';
+import { SwitchField } from '@/Components/app/SwitchField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { PageProps } from '@/types';
 
@@ -266,66 +268,44 @@ export default function GestionadosIndex({ usuarios, areas, cargos, supervisores
                                 {form.errors.name && <p className="text-sm text-destructive">{form.errors.name}</p>}
                             </div>
                             <div className="space-y-1.5">
-                                <Label>Área</Label>
-                                <Select value={form.data.area_id} onValueChange={(v) => form.setData('area_id', v)}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Selecciona…" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {areas.map((a) => (
-                                            <SelectItem key={a.id} value={String(a.id)}>
-                                                {a.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Label htmlFor="gest-area">Área</Label>
+                                <Combobox
+                                    id="gest-area"
+                                    value={form.data.area_id}
+                                    onChange={(v) => form.setData('area_id', v)}
+                                    searchPlaceholder="Buscar área…"
+                                    options={areas.map((a) => ({ value: String(a.id), label: a.name }))}
+                                />
                                 {form.errors.area_id && <p className="text-sm text-destructive">{form.errors.area_id}</p>}
                             </div>
                             <div className="space-y-1.5">
-                                <Label>Cargo</Label>
-                                <Select value={form.data.job_position_id} onValueChange={(v) => form.setData('job_position_id', v)}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Selecciona…" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {cargos.map((c) => (
-                                            <SelectItem key={c.id} value={String(c.id)}>
-                                                {c.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Label htmlFor="gest-cargo">Cargo</Label>
+                                <Combobox
+                                    id="gest-cargo"
+                                    value={form.data.job_position_id}
+                                    onChange={(v) => form.setData('job_position_id', v)}
+                                    searchPlaceholder="Buscar cargo…"
+                                    options={cargos.map((c) => ({ value: String(c.id), label: c.name }))}
+                                />
                                 {form.errors.job_position_id && <p className="text-sm text-destructive">{form.errors.job_position_id}</p>}
                             </div>
                             <div className="space-y-1.5 sm:col-span-2">
-                                <Label>Jefe / Supervisor (agente autorizador)</Label>
-                                <Select value={form.data.supervisor_id} onValueChange={(v) => form.setData('supervisor_id', v)}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Sin supervisor" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value={NONE}>Sin supervisor</SelectItem>
-                                        {supervisores.map((s) => (
-                                            <SelectItem key={s.id} value={String(s.id)}>
-                                                {s.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Label htmlFor="gest-supervisor">Jefe / Supervisor (agente autorizador)</Label>
+                                <Combobox
+                                    id="gest-supervisor"
+                                    value={form.data.supervisor_id === NONE ? '' : form.data.supervisor_id}
+                                    onChange={(v) => form.setData('supervisor_id', v === '' ? NONE : v)}
+                                    placeholder="Sin supervisor"
+                                    clearLabel="Sin supervisor"
+                                    searchPlaceholder="Buscar agente…"
+                                    options={supervisores.map((u) => ({ value: String(u.id), label: u.name }))}
+                                />
                                 <p className="text-xs text-muted-foreground">
                                     Se usa cuando una regla de autorización indica "su supervisor".
                                 </p>
                                 {form.errors.supervisor_id && <p className="text-sm text-destructive">{form.errors.supervisor_id}</p>}
                             </div>
-                            <label className="flex items-center gap-2 text-sm sm:col-span-2">
-                                <input
-                                    type="checkbox"
-                                    className="rounded border-input"
-                                    checked={form.data.is_active}
-                                    onChange={(e) => form.setData('is_active', e.target.checked)}
-                                />
-                                Activo
-                            </label>
+                            <SwitchField id="gest-active" label="Activo" className="sm:col-span-2" checked={form.data.is_active} onCheckedChange={(v) => form.setData('is_active', v)} />
                         </div>
 
                         <DialogFooter>

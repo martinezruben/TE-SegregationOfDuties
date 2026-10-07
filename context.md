@@ -224,6 +224,7 @@ Mapa de color semántico para el dominio:
 * **Layout & navegación:** `Sidebar`, `Breadcrumb`, `NavigationMenu`, `Sheet` (drawer móvil), `Separator`, `ScrollArea`, `Avatar`, `DropdownMenu` (menú de usuario).
 * **Datos:** `Table` + **TanStack Table** (orden, filtro, paginación server-side, selección), `Badge` (estados/riesgo), `Card`, `Tabs`, `Pagination`, `Skeleton`, `HoverCard`, `Tooltip`.
 * **Formularios:** `Form` (react-hook-form + zod), `Input`, `Textarea`, `Select`, `Combobox` (selector con búsqueda para cargos/áreas/usuarios), `Checkbox`, `Switch`, `RadioGroup`, `DatePicker` (Popover + Calendar), `Command` (paleta de comandos ⌘K).
+  * *Estado:* implementados `Combobox` (en `Components/app`, sobre Popover + Command; busca sin distinguir mayúsculas ni acentos y funciona dentro de diálogos), `Command` + paleta **⌘K / Ctrl+K** (páginas permitidas según el menú y acciones rápidas), `Switch`/`SwitchField`, `Checkbox`, `Tooltip` (`Hint`), `Popover` y `Tabs`. Los selectores con listas largas (usuarios, roles, cargos, agentes, permisos) usan `Combobox`; los enums cortos siguen con `Select`. Pendiente: `DatePicker`, `Skeleton` (no se usa al recargar gráficos a propósito), `Breadcrumb`.
 * **Overlays & feedback:** `Dialog` (modales CRUD), `AlertDialog` (confirmaciones destructivas), `Popover`, `Toast/Sonner`, `Alert` (bloques de conflicto SoD), `Progress`.
 
 ### 6A.4 Patrones de pantalla (recetas reutilizables)
@@ -255,6 +256,7 @@ El `AppLayout` (persistent layout de Inertia) contiene Sidebar + Topbar y envuel
 * Estilo shadcn **"new-york"**, `baseColor: slate`, con `cn()` (clsx + tailwind-merge) para componer clases.
 * Iconografía única: **lucide-react**.
 * Todas las pantallas (incluidas login, recuperación de contraseña, 2FA y perfil) usan solo componentes shadcn/ui, `GuestLayout` (sesión no iniciada) o `AppLayout` (con sesión) y `FormField` para etiqueta + control + error. Los componentes heredados de Breeze (`PrimaryButton`, `TextInput`, `Modal`, etc.) se eliminaron: no se deben reintroducir.
+* **Radix:** mantener todos los paquetes `@radix-ui/*` en versiones que compartan una única copia de `react-focus-scope` y `react-dismissable-layer`; con dos copias los popovers dentro de diálogos pierden el foco y `Escape` cierra ambos. La CI lo verifica.
 * Colores solo con tokens semánticos (`bg-background`, `text-success`, `text-destructive`…), nunca con grises/verdes fijos de Tailwind, para que el tema oscuro funcione sin ajustes.
 * Tipado estricto (TypeScript); props de página tipadas y `can` (permisos) tipado.
 * Formato/lint: ESLint + Prettier (front), Pint/Larastan (back).

@@ -6,6 +6,7 @@ import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import { Input } from '@/Components/ui/input';
+import { Checkbox } from '@/Components/ui/checkbox';
 import { Label } from '@/Components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
@@ -185,10 +186,10 @@ export default function AgentesIndex({ agentes, roles, filters, currentUserId, c
                                 <Label>Roles</Label>
                                 <div className="grid grid-cols-2 gap-2">
                                     {roles.map((r) => (
-                                        <label key={r} className="flex items-center gap-2 text-sm">
-                                            <input type="checkbox" className="rounded border-input" checked={form.data.roles.includes(r)} onChange={() => toggleRole(r)} />
-                                            {r}
-                                        </label>
+                                        <div key={r} className="flex items-center gap-2 text-sm">
+                                            <Checkbox id={`agente-rol-${r}`} checked={form.data.roles.includes(r)} onCheckedChange={() => toggleRole(r)} />
+                                            <Label htmlFor={`agente-rol-${r}`} className="font-normal">{r}</Label>
+                                        </div>
                                     ))}
                                 </div>
                             </div>

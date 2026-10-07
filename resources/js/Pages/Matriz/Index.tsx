@@ -20,6 +20,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
+import { Combobox } from '@/Components/app/Combobox';
+import { SwitchField } from '@/Components/app/SwitchField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { PageProps } from '@/types';
 
@@ -216,9 +218,9 @@ export default function MatrizIndex({ conflictos, aplicaciones, riesgos, can }: 
                         <div className="space-y-4 py-4">
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-1.5">
-                                    <Label>Aplicación A</Label>
+                                    <Label htmlFor="matriz-app-a">Aplicación A</Label>
                                     <Select value={appA} onValueChange={(v) => { setAppA(v); form.setData('role_a_id', ''); }}>
-                                        <SelectTrigger><SelectValue placeholder="Aplicación…" /></SelectTrigger>
+                                        <SelectTrigger id="matriz-app-a"><SelectValue placeholder="Aplicación…" /></SelectTrigger>
                                         <SelectContent>
                                             {aplicaciones.map((a) => (
                                                 <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>
@@ -227,24 +229,25 @@ export default function MatrizIndex({ conflictos, aplicaciones, riesgos, can }: 
                                     </Select>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label>Rol A</Label>
-                                    <Select value={form.data.role_a_id} onValueChange={(v) => form.setData('role_a_id', v)} disabled={!appA}>
-                                        <SelectTrigger><SelectValue placeholder="Rol…" /></SelectTrigger>
-                                        <SelectContent>
-                                            {rolesA.map((r) => (
-                                                <SelectItem key={r.id} value={String(r.id)}>{r.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <Label htmlFor="matriz-role-a">Rol A</Label>
+                                    <Combobox
+                                        id="matriz-role-a"
+                                        value={form.data.role_a_id}
+                                        onChange={(v) => form.setData('role_a_id', v)}
+                                        disabled={!appA}
+                                        placeholder={appA ? 'Selecciona un rol…' : 'Elige la aplicación'}
+                                        searchPlaceholder="Buscar rol…"
+                                        options={rolesA.map((r) => ({ value: String(r.id), label: r.name }))}
+                                    />
                                 </div>
                             </div>
                             {form.errors.role_a_id && <p className="text-sm text-destructive">{form.errors.role_a_id}</p>}
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-1.5">
-                                    <Label>Aplicación B</Label>
+                                    <Label htmlFor="matriz-app-b">Aplicación B</Label>
                                     <Select value={appB} onValueChange={(v) => { setAppB(v); form.setData('role_b_id', ''); }}>
-                                        <SelectTrigger><SelectValue placeholder="Aplicación…" /></SelectTrigger>
+                                        <SelectTrigger id="matriz-app-b"><SelectValue placeholder="Aplicación…" /></SelectTrigger>
                                         <SelectContent>
                                             {aplicaciones.map((a) => (
                                                 <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>
@@ -253,15 +256,16 @@ export default function MatrizIndex({ conflictos, aplicaciones, riesgos, can }: 
                                     </Select>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label>Rol B</Label>
-                                    <Select value={form.data.role_b_id} onValueChange={(v) => form.setData('role_b_id', v)} disabled={!appB}>
-                                        <SelectTrigger><SelectValue placeholder="Rol…" /></SelectTrigger>
-                                        <SelectContent>
-                                            {rolesB.map((r) => (
-                                                <SelectItem key={r.id} value={String(r.id)}>{r.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <Label htmlFor="matriz-role-b">Rol B</Label>
+                                    <Combobox
+                                        id="matriz-role-b"
+                                        value={form.data.role_b_id}
+                                        onChange={(v) => form.setData('role_b_id', v)}
+                                        disabled={!appB}
+                                        placeholder={appB ? 'Selecciona un rol…' : 'Elige la aplicación'}
+                                        searchPlaceholder="Buscar rol…"
+                                        options={rolesB.map((r) => ({ value: String(r.id), label: r.name }))}
+                                    />
                                 </div>
                             </div>
                             {form.errors.role_b_id && <p className="text-sm text-destructive">{form.errors.role_b_id}</p>}
@@ -278,10 +282,7 @@ export default function MatrizIndex({ conflictos, aplicaciones, riesgos, can }: 
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <label className="mt-6 flex items-center gap-2 text-sm">
-                                    <input type="checkbox" className="rounded border-input" checked={form.data.is_active} onChange={(e) => form.setData('is_active', e.target.checked)} />
-                                    Activo
-                                </label>
+                                <SwitchField id="matriz-active" label="Activo" className="mt-6" checked={form.data.is_active} onCheckedChange={(v) => form.setData('is_active', v)} />
                             </div>
 
                             <div className="space-y-1.5">
