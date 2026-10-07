@@ -11,6 +11,7 @@ use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\JobPositionRuleController;
 use App\Http\Controllers\ManagedUserController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OptionController;
 use App\Http\Controllers\PlatformRoleController;
 use App\Http\Controllers\ProfileController;
@@ -85,6 +86,10 @@ Route::middleware(['auth', 'verified', '2fa'])->group(function () {
     // Reportes
     Route::get('reportes/accesos', [AccessReportController::class, 'index'])->name('reportes.accesos');
     Route::get('reportes/accesos/export', [AccessReportController::class, 'export'])->name('reportes.accesos.export');
+
+    // Notificaciones in-app (campana)
+    Route::post('notificaciones/leer-todas', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::post('notificaciones/{id}/leer', [NotificationController::class, 'read'])->name('notifications.read');
 
     // Bitácora (auditoría)
     Route::get('bitacora', [AuditController::class, 'index'])->name('bitacora.index');

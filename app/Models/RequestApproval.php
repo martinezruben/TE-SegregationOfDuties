@@ -14,6 +14,7 @@ class RequestApproval extends Model implements Auditable
     protected $fillable = [
         'role_request_id', 'approver_id', 'approver_role', 'reasons', 'step_order',
         'status', 'is_auto', 'comments', 'resolved_at', 'resolved_by',
+        'activated_at', 'reminded_at', 'reminder_count',
     ];
 
     protected $casts = [
@@ -21,6 +22,8 @@ class RequestApproval extends Model implements Auditable
         'reasons' => 'array',
         'is_auto' => 'boolean',
         'resolved_at' => 'datetime',
+        'activated_at' => 'datetime',
+        'reminded_at' => 'datetime',
     ];
 
     public function roleRequest(): BelongsTo

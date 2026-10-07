@@ -4,6 +4,7 @@ import { Menu as MenuIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { SidebarBrand, SidebarNav } from '@/Components/app/Sidebar';
+import { NotificationBell } from '@/Components/app/NotificationBell';
 import { UserMenu } from '@/Components/app/UserMenu';
 import { Toaster } from '@/Components/ui/sonner';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/Components/ui/sheet';
@@ -44,6 +45,7 @@ export default function AppLayout({ title, header, children }: PropsWithChildren
                         {header ?? (title ? <h1 className="text-lg font-semibold">{title}</h1> : null)}
                     </div>
 
+                    <NotificationBell />
                     <UserMenu />
                 </header>
 

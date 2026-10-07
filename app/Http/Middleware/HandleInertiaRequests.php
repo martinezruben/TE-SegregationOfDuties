@@ -49,6 +49,20 @@ class HandleInertiaRequests extends Middleware
             'menu' => $user
                 ? fn () => app(MenuBuilder::class)->forUser($user)
                 : [],
+            // Campana de notificaciones: contador y últimas 10 (carga diferida).
+            'notifications' => $user
+                ? [
+                    'unread' => fn () => $user->unreadNotifications()->count(),
+                    'items' => fn () => $user->notifications()->limit(10)->get()->map(fn ($n) => [
+                        'id' => $n->id,
+                        'title' => $n->data['title'] ?? '',
+                        'body' => $n->data['body'] ?? '',
+                        'kind' => $n->data['kind'] ?? '',
+                        'read' => $n->read_at !== null,
+                        'created_at' => $n->created_at?->diffForHumans(),
+                    ])->values(),
+                ]
+                : ['unread' => 0, 'items' => []],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
