@@ -1,11 +1,11 @@
 <?php
 
+use App\Http\Controllers\AccessReportController;
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\ApplicationController;
-use App\Http\Controllers\AccessReportController;
 use App\Http\Controllers\AreaController;
-use App\Http\Controllers\AuthorizationRuleController;
 use App\Http\Controllers\AuditController;
+use App\Http\Controllers\AuthorizationRuleController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\JobPositionRuleController;
@@ -18,14 +18,15 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\RoleRequestController;
 use App\Http\Controllers\SimulatorController;
 use App\Http\Controllers\SodConflictController;
+use App\Http\Controllers\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route(auth()->check() ? 'dashboard' : 'login'));
 
 Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->middleware(['auth', 'verified'])->name('dashboard');
+    ->middleware(['auth', 'verified', '2fa'])->name('dashboard');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', '2fa'])->group(function () {
     // Catálogos
     Route::resource('areas', AreaController::class)
         ->only(['index', 'store', 'update', 'destroy']);
@@ -98,6 +99,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Autenticación en dos pasos (TOTP)
+    Route::post('/profile/two-factor', [TwoFactorController::class, 'store'])->name('two-factor.enable');
+    Route::post('/profile/two-factor/confirm', [TwoFactorController::class, 'confirm'])->name('two-factor.confirm');
+    Route::post('/profile/two-factor/recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes'])->name('two-factor.recovery-codes');
+    Route::delete('/profile/two-factor', [TwoFactorController::class, 'destroy'])->name('two-factor.disable');
 });
 
 require __DIR__.'/auth.php';

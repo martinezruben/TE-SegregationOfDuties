@@ -139,7 +139,7 @@ La autorización se implementa con **[spatie/laravel-permission](https://spatie.
 | **Autorización** | spatie/laravel-permission |
 | **Auditoría** | owen-it/laravel-auditing |
 | **Import/Export** | maatwebsite/excel (Laravel Excel) |
-| **Autenticación** | Laravel Fortify + Inertia (2FA/TOTP incluido) |
+| **Autenticación** | Laravel Breeze (Inertia) + 2FA/TOTP propio (`pragmarx/google2fa`, QR con `bacon/bacon-qr-code`, códigos de recuperación). Obligatorio para los roles de `config/sod.php` (Administrador, Gestor de Seguridad). Sin registro público: el alta es por el módulo Agentes. |
 | **Testing** | Pest/PHPUnit (backend) · Vitest + Testing Library (React) · Playwright (E2E) |
 | **Assets** | Vite (plugin Laravel + React) |
 | **Contenedores** | Docker + Docker Compose (Laravel Sail en desarrollo) |

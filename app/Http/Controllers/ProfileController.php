@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Services\TwoFactorService;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,7 +22,28 @@ class ProfileController extends Controller
         return Inertia::render('Profile/Edit', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => session('status'),
+            'twoFactor' => $this->twoFactorState($request),
         ]);
+    }
+
+    /**
+     * Estado de 2FA para la pantalla de perfil (el QR solo se expone mientras la activación está pendiente).
+     *
+     * @return array<string, mixed>
+     */
+    private function twoFactorState(Request $request): array
+    {
+        $user = $request->user();
+        $pending = $user->two_factor_secret !== null && ! $user->hasTwoFactorEnabled();
+
+        return [
+            'enabled' => $user->hasTwoFactorEnabled(),
+            'required' => $user->mustUseTwoFactor(),
+            'pending' => $pending,
+            'qrCode' => $pending ? app(TwoFactorService::class)->qrCodeSvg($user) : null,
+            'secret' => $pending ? $user->two_factor_secret : null,
+            'recoveryCodes' => session('recovery_codes'),
+        ];
     }
 
     /**

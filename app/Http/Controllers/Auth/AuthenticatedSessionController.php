@@ -31,6 +31,21 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
+        $user = Auth::guard('web')->user();
+
+        // Con 2FA activo la sesión no se abre hasta superar el desafío (código TOTP).
+        if ($user->hasTwoFactorEnabled()) {
+            Auth::guard('web')->logout();
+
+            $request->session()->regenerate();
+            $request->session()->put([
+                'login.id' => $user->getKey(),
+                'login.remember' => $request->boolean('remember'),
+            ]);
+
+            return redirect()->route('two-factor.login');
+        }
+
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard', absolute: false));
