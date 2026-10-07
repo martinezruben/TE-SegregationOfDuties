@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Enums\ApprovalStatus;
 use App\Enums\RequestStatus;
 use App\Enums\RequestType;
+use App\Models\Application;
+use App\Models\Role;
 use App\Models\RoleRequest;
+use App\Services\ApprovalNotifier;
 use App\Services\ApprovalWorkflowBuilder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -52,8 +55,8 @@ class RoleRequestController extends Controller
             'solicitudes' => $solicitudes,
             'filters' => $filters,
             'opciones' => [
-                'aplicaciones' => \App\Models\Application::orderBy('name')->get(['id', 'name']),
-                'roles' => \App\Models\Role::with('application:id,name')->orderBy('name')->get(['id', 'name', 'application_id']),
+                'aplicaciones' => Application::orderBy('name')->get(['id', 'name']),
+                'roles' => Role::with('application:id,name')->orderBy('name')->get(['id', 'name', 'application_id']),
                 'estados' => array_map(fn (RequestStatus $s) => ['value' => $s->value, 'label' => $s->label()], RequestStatus::cases()),
             ],
         ]);
@@ -157,7 +160,7 @@ class RoleRequestController extends Controller
         return back()->with('success', $msg);
     }
 
-    public function approve(Request $request, RoleRequest $solicitud, ApprovalWorkflowBuilder $builder): RedirectResponse
+    public function approve(Request $request, RoleRequest $solicitud, ApprovalWorkflowBuilder $builder, ApprovalNotifier $notifier): RedirectResponse
     {
         $this->authorizeStep($request, $solicitud);
 
@@ -172,26 +175,31 @@ class RoleRequestController extends Controller
         $next = $solicitud->approvals()->where('status', ApprovalStatus::Pendiente)->exists();
         if ($next) {
             $solicitud->update(['status' => RequestStatus::EnAprobacion]);
+            $notifier->stepActivated($solicitud);
         } else {
             $solicitud->update(['status' => RequestStatus::Aprobado]);
             $builder->applyApproved($solicitud);
+            $notifier->resolved($solicitud, approved: true, comments: $step->comments);
         }
 
         return back()->with('success', 'Paso aprobado.');
     }
 
-    public function reject(Request $request, RoleRequest $solicitud): RedirectResponse
+    public function reject(Request $request, RoleRequest $solicitud, ApprovalNotifier $notifier): RedirectResponse
     {
         $this->authorizeStep($request, $solicitud);
+
+        $comments = $request->string('comments')->toString() ?: null;
 
         $solicitud->currentStep()->update([
             'status' => ApprovalStatus::Rechazado,
             'resolved_at' => now(),
             'resolved_by' => $request->user()->id,
-            'comments' => $request->string('comments')->toString() ?: null,
+            'comments' => $comments,
         ]);
 
         $solicitud->update(['status' => RequestStatus::Rechazado]);
+        $notifier->resolved($solicitud, approved: false, comments: $comments);
 
         return back()->with('success', 'Solicitud rechazada.');
     }

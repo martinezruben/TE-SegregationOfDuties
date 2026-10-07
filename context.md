@@ -548,6 +548,12 @@ Vía **Laravel Notifications** (canales `mail` + `database`, extensible a Slack/
 * Alerta a Gestor de Seguridad cuando se registra una solicitud con conflicto SoD de riesgo alto.
 * Centro de notificaciones in-app (campana) con marcado de leído/no leído.
 
+**Implementación (estado actual):**
+* Servicio `ApprovalNotifier` + notificaciones `ApprovalPending` (también como recordatorio), `RequestResolved` y `HighRiskSodAlert`; canales `mail` + `database`, encoladas (`ShouldQueue`).
+* **SLA:** `config/sod.php` → `SOD_SLA_HOURS` (48), `SOD_SLA_REMINDER_EVERY_HOURS` (24), `SOD_SLA_MAX_REMINDERS` (5). El comando `approvals:remind` corre cada hora vía Scheduler y recuerda solo el paso actual vencido de solicitudes abiertas.
+* **Operación:** requiere un worker (`php artisan queue:work`) y el cron del Scheduler (`php artisan schedule:run` cada minuto); sin ellos no se envían correos ni recordatorios.
+* La campana del topbar lista las últimas 10 notificaciones, con marcado individual/total; solo se pueden leer las propias.
+
 ---
 
 ## 12. Reportería, Dashboards y KPIs

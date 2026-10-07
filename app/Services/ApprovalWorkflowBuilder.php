@@ -20,8 +20,8 @@ class ApprovalWorkflowBuilder
     public function __construct(
         private SodEvaluator $evaluator,
         private AuthorizationResolver $resolver,
-    ) {
-    }
+        private ApprovalNotifier $notifier,
+    ) {}
 
     public function build(RoleRequest $request): void
     {
@@ -91,6 +91,9 @@ class ApprovalWorkflowBuilder
 
         $request->status = RequestStatus::EnAprobacion;
         $request->save();
+
+        $this->notifier->stepActivated($request);
+        $this->notifier->highRiskAlert($request);
     }
 
     /**

@@ -13,6 +13,15 @@ export interface MenuItem {
     children: MenuItem[];
 }
 
+export interface AppNotification {
+    id: string;
+    title: string;
+    body: string;
+    kind: string;
+    read: boolean;
+    created_at: string;
+}
+
 export interface Flash {
     success?: string | null;
     error?: string | null;
@@ -27,5 +36,6 @@ export type PageProps<
         roles: string[];
     };
     menu: MenuItem[];
+    notifications: { unread: number; items: AppNotification[] };
     flash: Flash;
 };
