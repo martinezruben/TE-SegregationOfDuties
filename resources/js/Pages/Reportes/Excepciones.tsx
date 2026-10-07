@@ -8,6 +8,7 @@ import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
+import { DatePicker } from '@/Components/app/DatePicker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 import { PageProps } from '@/types';
@@ -117,9 +118,9 @@ export default function Excepciones({ filas, filters, opciones, can }: Props) {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-1.5"><Label className="text-xs">Aprobada desde</Label><Input type="date" value={f.date_from ?? ''} onChange={(e) => set('date_from', e.target.value || null)} /></div>
-                            <div className="space-y-1.5"><Label className="text-xs">Aprobada hasta</Label><Input type="date" value={f.date_to ?? ''} onChange={(e) => set('date_to', e.target.value || null)} /></div>
+                        <div className="grid grid-cols-2 gap-2 sm:col-span-2">
+                            <div className="space-y-1.5"><Label htmlFor="filtro-date_from" className="text-xs">Aprobada desde</Label><DatePicker id="filtro-date_from" value={f.date_from} max={f.date_to ?? undefined} placeholder="Desde" onChange={(v) => set('date_from', v || null)} /></div>
+                            <div className="space-y-1.5"><Label htmlFor="filtro-date_to" className="text-xs">Aprobada hasta</Label><DatePicker id="filtro-date_to" value={f.date_to} min={f.date_from ?? undefined} placeholder="Hasta" onChange={(v) => set('date_to', v || null)} /></div>
                         </div>
                         <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
                             <Button onClick={apply}><Filter className="size-4" /> Aplicar filtros</Button>

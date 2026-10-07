@@ -1,3 +1,4 @@
+import { format } from 'date-fns';
 import { FormEvent, useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { BadgeCheck, Plus } from 'lucide-react';
@@ -7,6 +8,7 @@ import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Checkbox } from '@/Components/ui/checkbox';
+import { DatePicker } from '@/Components/app/DatePicker';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/Components/ui/dialog';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -161,7 +163,7 @@ export default function Index({
                             </div>
                             <div className="space-y-1.5">
                                 <Label htmlFor="due_date">Fecha límite</Label>
-                                <Input id="due_date" type="date" value={form.data.due_date} onChange={(e) => form.setData('due_date', e.target.value)} />
+                                <DatePicker id="due_date" value={form.data.due_date} min={format(new Date(), 'yyyy-MM-dd')} clearable={false} placeholder="Selecciona la fecha límite" onChange={(v) => form.setData('due_date', v)} />
                                 {form.errors.due_date && <p className="text-sm text-destructive">{form.errors.due_date}</p>}
                             </div>
                             <div className="grid grid-cols-2 gap-3">
