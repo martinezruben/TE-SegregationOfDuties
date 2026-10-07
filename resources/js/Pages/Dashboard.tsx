@@ -1,9 +1,15 @@
 import AppLayout from '@/Layouts/AppLayout';
 import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Separator } from '@/Components/ui/separator';
+import { ChartCard, LegendKey } from '@/Components/app/charts/ChartCard';
+import { BarDatum, HBarChart } from '@/Components/app/charts/HBarChart';
+import { TrendChart } from '@/Components/app/charts/TrendChart';
+import { Label } from '@/Components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { ShieldAlert, Clock, CheckCircle2, FileWarning } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { PageProps } from '@/types';
@@ -18,6 +24,17 @@ interface Pending {
     is_major: boolean;
 }
 
+interface Charts {
+    days: number;
+    by_status: BarDatum[];
+    conflicts_trend: { label: string; detectados: number; aceptados: number }[];
+    aging: BarDatum[];
+    top_apps: BarDatum[];
+    top_roles: BarDatum[];
+}
+
+const PERIODS = [30, 90, 180, 365];
+
 type Props = PageProps<{
     kpis: {
         autorizaciones_pendientes: number;
@@ -27,11 +44,23 @@ type Props = PageProps<{
         mis_solicitudes: number;
     };
     pendientes: Pending[];
+    charts: Charts | null;
 }>;
 
-export default function Dashboard({ kpis, pendientes }: Props) {
+export default function Dashboard({ kpis, pendientes, charts }: Props) {
     const { can } = usePermissions();
     const canApprove = can('solicitudes.autorizar');
+    const [loading, setLoading] = useState(false);
+
+    // Un único filtro de período para todos los gráficos; mientras recarga se conserva el render anterior.
+    const changePeriod = (days: string) =>
+        router.get(route('dashboard'), { days }, {
+            only: ['charts'],
+            preserveState: true,
+            preserveScroll: true,
+            onStart: () => setLoading(true),
+            onFinish: () => setLoading(false),
+        });
 
     const act = (id: number, action: 'aprobar' | 'rechazar') => {
         router.post(route(action === 'aprobar' ? 'solicitudes.approve' : 'solicitudes.reject', id), {}, { preserveScroll: true });
@@ -68,6 +97,75 @@ export default function Dashboard({ kpis, pendientes }: Props) {
                         </Card>
                     ))}
                 </div>
+
+                {charts && (
+                    <section aria-labelledby="charts-title" className="space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <h2 id="charts-title" className="text-lg font-semibold">Indicadores</h2>
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor="period" className="text-sm text-muted-foreground">Período</Label>
+                                <Select value={String(charts.days)} onValueChange={changePeriod}>
+                                    <SelectTrigger id="period" className="w-44"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {PERIODS.map((d) => (
+                                            <SelectItem key={d} value={String(d)}>Últimos {d} días</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className={`grid grid-cols-1 gap-4 transition-opacity lg:grid-cols-3 ${loading ? 'opacity-60' : ''}`} aria-busy={loading}>
+                            <ChartCard
+                                title="Solicitudes por estado"
+                                description={`Creadas en los últimos ${charts.days} días.`}
+                                table={{ columns: ['Estado', 'Solicitudes'], rows: charts.by_status.map((d) => [d.label, d.value]) }}
+                            >
+                                <HBarChart data={charts.by_status} unit="solicitudes" />
+                            </ChartCard>
+
+                            <ChartCard
+                                className="lg:col-span-2"
+                                title="Conflictos SoD: detectados vs aceptados"
+                                description="Solicitudes con conflicto por mes, y cuántas se aprobaron pese a él."
+                                legend={<><LegendKey color="var(--chart-1)" label="Detectados" /><LegendKey color="var(--chart-2)" label="Aceptados (aprobados)" /></>}
+                                table={{ columns: ['Mes', 'Detectados', 'Aceptados'], rows: charts.conflicts_trend.map((d) => [d.label, d.detectados, d.aceptados]) }}
+                            >
+                                <TrendChart
+                                    data={charts.conflicts_trend}
+                                    series={[
+                                        { key: 'detectados', label: 'Detectados', color: 'var(--chart-1)' },
+                                        { key: 'aceptados', label: 'Aceptados (aprobados)', color: 'var(--chart-2)' },
+                                    ]}
+                                />
+                            </ChartCard>
+
+                            <ChartCard
+                                title="Autorizaciones pendientes por antigüedad"
+                                description="Pasos abiertos hoy; no depende del período."
+                                table={{ columns: ['Antigüedad', 'Pasos pendientes'], rows: charts.aging.map((d) => [d.label, d.value]) }}
+                            >
+                                <HBarChart data={charts.aging} unit="pasos pendientes" />
+                            </ChartCard>
+
+                            <ChartCard
+                                title="Aplicaciones más solicitadas"
+                                description="Las 5 con más solicitudes en el período."
+                                table={{ columns: ['Aplicación', 'Solicitudes'], rows: charts.top_apps.map((d) => [d.label, d.value]) }}
+                            >
+                                <HBarChart data={charts.top_apps} unit="solicitudes" />
+                            </ChartCard>
+
+                            <ChartCard
+                                title="Roles más solicitados"
+                                description="Los 5 con más solicitudes en el período."
+                                table={{ columns: ['Rol', 'Aplicación', 'Solicitudes'], rows: charts.top_roles.map((d) => [d.label, d.detail ?? '', d.value]) }}
+                            >
+                                <HBarChart data={charts.top_roles} unit="solicitudes" />
+                            </ChartCard>
+                        </div>
+                    </section>
+                )}
 
                 <Card>
                     <CardHeader>

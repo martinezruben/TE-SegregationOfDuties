@@ -566,6 +566,8 @@ Vía **Laravel Notifications** (canales `mail` + `database`, extensible a Slack/
 * Aprobaciones pendientes por aprobador (SLA / antigüedad).
 * Top aplicaciones y roles más solicitados.
 
+**Implementación (estado actual):** sección *Indicadores* del Dashboard, visible con `reportes.ver`, con un único filtro de período (30 / 90 / 180 / 365 días) sobre todos los gráficos: solicitudes por estado, conflictos detectados vs aceptados por mes, autorizaciones pendientes por antigüedad (foto de hoy), y las 5 aplicaciones y roles más solicitados. Cada gráfico tiene su gemelo en **tabla** (los valores nunca dependen del tooltip). Reglas de diseño: una sola serie por gráfico (un color), sin doble eje, línea de 2px sin suavizado, texto siempre en tokens de texto; las dos series de color (`--chart-1` azul, `--chart-2` naranja, con pasos propios en modo oscuro) se validaron con `validate_palette.js` contra la superficie de la tarjeta. Datos en `App\Services\DashboardCharts`; gráficos con `recharts` (solo se carga en la página del Dashboard).
+
 **Reportes exportables (Excel/PDF):**
 * **Reporte de Conflictos Activos** *(implementado, *Segregación → Conflictos activos*)*: cruza a nivel SQL la foto vigente (excluye accesos expirados, usuarios/roles eliminados y pares inactivos) contra la matriz SoD. Cada conflicto indica si tiene **excepción formal** (una solicitud aprobada que registró ese mismo conflicto) o si vino por importación/carga manual **sin excepción**. Filtros: usuario, aplicación, área, cargo, riesgo y excepción; exporta CSV. El dashboard muestra el total a quien tenga `reportes.ver`.
 * **Matriz de Accesos por Usuario/Cargo/Aplicación.**

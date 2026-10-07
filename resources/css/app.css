@@ -51,6 +51,12 @@
         --sidebar-accent: 217 33% 24%;
         --sidebar-accent-foreground: 210 40% 98%;
         --sidebar-border: 217 33% 20%;
+
+        /* Gráficos: serie 1 azul, serie 2 naranja (validadas: CVD ΔE 24.7, contraste ≥ 3:1 sobre la tarjeta) */
+        --chart-1: #2a78d6;
+        --chart-2: #eb6834;
+        --chart-grid: #e1e0d9;
+        --chart-axis: #c3c2b7;
     }
 
     .dark {
@@ -93,6 +99,12 @@
         --sidebar-accent: 217 33% 20%;
         --sidebar-accent-foreground: 210 40% 98%;
         --sidebar-border: 217 33% 16%;
+
+        /* Gráficos: mismos tonos en pasos propios del modo oscuro (validados contra la tarjeta oscura) */
+        --chart-1: #3987e5;
+        --chart-2: #d95926;
+        --chart-grid: #2c3550;
+        --chart-axis: #3b4666;
     }
 }
 
