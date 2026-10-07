@@ -44,7 +44,7 @@ npm run build
 
 ## Sistema de diseño (shadcn/ui)
 
-- Componentes en `resources/js/components/ui/` (propiedad del proyecto, estilo **new-york**).
+- Componentes en `resources/js/Components/ui/` (propiedad del proyecto, estilo **new-york**).
 - Tokens de color/tema en `resources/css/app.css` y `tailwind.config.js` (ver `context.md` §6A).
 - Utilidad `cn()` en `resources/js/lib/utils.ts`. Config de shadcn en `components.json`.
 - Agregar más componentes: `npx shadcn@latest add <componente>`.
@@ -54,8 +54,9 @@ npm run build
 ```
 app/                       # Backend Laravel (Controllers, Models, Policies, Services…)
 resources/js/
-├── components/ui/         # Componentes shadcn/ui
-├── Layouts/  Pages/       # Layouts y páginas Inertia (React)
+├── Components/ui/         # Componentes shadcn/ui
+├── Components/app/        # Componentes de dominio (Sidebar, NotificationBell, ThemeToggle, FormField…)
+├── Layouts/  Pages/       # AppLayout / GuestLayout y páginas Inertia (React)
 ├── lib/utils.ts           # helper cn()
 └── app.tsx                # bootstrap de Inertia
 resources/css/app.css      # Tailwind + design tokens
