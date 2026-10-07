@@ -35,6 +35,7 @@ class RolePermissionSeeder extends Seeder
         'simulador' => ['ver'],
         'reportes' => ['ver', 'exportar'],
         'bitacora' => ['ver'],
+        'importaciones' => ['ver', 'crear'],
     ];
 
     public function run(): void
@@ -51,7 +52,8 @@ class RolePermissionSeeder extends Seeder
 
         // Helpers para componer conjuntos de permisos.
         $only = fn (array $names) => $names;
-        $allViews = array_values(array_filter($all, fn ($p) => str_ends_with($p, '.ver')));
+        // Importaciones queda fuera de los roles de solo lectura: es una herramienta operativa.
+        $allViews = array_values(array_filter($all, fn ($p) => str_ends_with($p, '.ver') && $p !== 'importaciones.ver'));
         $matrizAll = array_values(array_filter($all, fn ($p) => str_starts_with($p, 'matriz.')));
         $autorizacionesAll = array_values(array_filter($all, fn ($p) => str_starts_with($p, 'autorizaciones.')));
 

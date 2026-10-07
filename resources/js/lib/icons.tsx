@@ -13,6 +13,9 @@ import {
     ScrollText,
     Settings,
     ShieldAlert,
+    Table2,
+    Upload,
+    UserCheck,
     UserCog,
     Users,
     type LucideIcon,
@@ -35,6 +38,9 @@ const map: Record<string, LucideIcon> = {
     'key-round': KeyRound,
     'list-tree': ListTree,
     'scroll-text': ScrollText,
+    upload: Upload,
+    'user-check': UserCheck,
+    'table-2': Table2,
 };
 
 export function menuIcon(name: string | null | undefined): LucideIcon {

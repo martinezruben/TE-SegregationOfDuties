@@ -7,6 +7,7 @@ use App\Http\Controllers\AreaController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\AuthorizationRuleController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ImportController;
 use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\JobPositionRuleController;
 use App\Http\Controllers\ManagedUserController;
@@ -86,6 +87,14 @@ Route::middleware(['auth', 'verified', '2fa'])->group(function () {
     // Reportes
     Route::get('reportes/accesos', [AccessReportController::class, 'index'])->name('reportes.accesos');
     Route::get('reportes/accesos/export', [AccessReportController::class, 'export'])->name('reportes.accesos.export');
+
+    // Importación masiva con dry-run (Foto y usuarios gestionados)
+    Route::get('importaciones', [ImportController::class, 'index'])->name('importaciones.index');
+    Route::post('importaciones', [ImportController::class, 'preview'])->name('importaciones.preview');
+    Route::get('importaciones/plantilla/{kind}', [ImportController::class, 'template'])->name('importaciones.template');
+    Route::get('importaciones/{lote}', [ImportController::class, 'show'])->name('importaciones.show');
+    Route::post('importaciones/{lote}/aplicar', [ImportController::class, 'apply'])->name('importaciones.apply');
+    Route::get('importaciones/{lote}/errores', [ImportController::class, 'errors'])->name('importaciones.errors');
 
     // Notificaciones in-app (campana)
     Route::post('notificaciones/leer-todas', [NotificationController::class, 'readAll'])->name('notifications.read-all');
