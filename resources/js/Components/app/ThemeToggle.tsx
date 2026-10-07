@@ -1,5 +1,6 @@
 import { Monitor, Moon, Sun } from 'lucide-react';
 
+import { Hint } from '@/Components/app/Hint';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -20,14 +21,27 @@ export function ThemeToggle() {
 
     return (
         <DropdownMenu>
-            <DropdownMenuTrigger className="rounded-md p-2 hover:bg-accent" aria-label="Cambiar tema">
-                <Icon className="size-5" />
-            </DropdownMenuTrigger>
+            <Hint label="Cambiar tema">
+                <DropdownMenuTrigger
+                    className="rounded-md p-2 hover:bg-accent"
+                    aria-label="Cambiar tema"
+                >
+                    <Icon className="size-5" />
+                </DropdownMenuTrigger>
+            </Hint>
             <DropdownMenuContent align="end">
                 {options.map(({ value, label, icon: I }) => (
-                    <DropdownMenuItem key={value} onSelect={() => setTheme(value)} className="cursor-pointer gap-2">
+                    <DropdownMenuItem
+                        key={value}
+                        onSelect={() => setTheme(value)}
+                        className="cursor-pointer gap-2"
+                    >
                         <I className="size-4" /> {label}
-                        {theme === value && <span className="ml-auto text-xs text-muted-foreground">✓</span>}
+                        {theme === value && (
+                            <span className="ml-auto text-xs text-muted-foreground">
+                                ✓
+                            </span>
+                        )}
                     </DropdownMenuItem>
                 ))}
             </DropdownMenuContent>

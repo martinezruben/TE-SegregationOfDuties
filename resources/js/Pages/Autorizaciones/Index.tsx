@@ -20,6 +20,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
+import { Combobox } from '@/Components/app/Combobox';
+import { SwitchField } from '@/Components/app/SwitchField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { PageProps } from '@/types';
 
@@ -292,28 +294,19 @@ export default function AutorizacionesIndex({ reglas, aplicaciones, agentes, can
 
                             {form.data.authorizer_type === 'fixed' && (
                                 <div className="space-y-1.5">
-                                    <Label>Autorizador</Label>
-                                    <Select value={form.data.authorizer_id} onValueChange={(v) => form.setData('authorizer_id', v)}>
-                                        <SelectTrigger><SelectValue placeholder="Selecciona…" /></SelectTrigger>
-                                        <SelectContent>
-                                            {agentes.map((a) => (
-                                                <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <Label htmlFor="autorizaciones-authorizer">Autorizador</Label>
+                                    <Combobox
+                                        id="autorizaciones-authorizer"
+                                        value={form.data.authorizer_id}
+                                        onChange={(v) => form.setData('authorizer_id', v)}
+                                        searchPlaceholder="Buscar agente…"
+                                        options={agentes.map((a) => ({ value: String(a.id), label: a.name }))}
+                                    />
                                     {form.errors.authorizer_id && <p className="text-sm text-destructive">{form.errors.authorizer_id}</p>}
                                 </div>
                             )}
 
-                            <label className="flex items-center gap-2 text-sm sm:col-span-2">
-                                <input
-                                    type="checkbox"
-                                    className="rounded border-input"
-                                    checked={form.data.is_active}
-                                    onChange={(e) => form.setData('is_active', e.target.checked)}
-                                />
-                                Activa
-                            </label>
+                            <SwitchField id="autorizaciones-is_active" label="Activa" className="sm:col-span-2" checked={form.data.is_active} onCheckedChange={(v) => form.setData('is_active', v)} />
                         </div>
 
                         <DialogFooter>

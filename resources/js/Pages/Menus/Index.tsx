@@ -20,6 +20,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
+import { Combobox } from '@/Components/app/Combobox';
+import { SwitchField } from '@/Components/app/SwitchField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { PageProps } from '@/types';
 
@@ -175,38 +177,35 @@ export default function MenusIndex({ menus, parents, permissions, can }: Props) 
                                 <Input id="route" value={form.data.route} onChange={(e) => form.setData('route', e.target.value)} placeholder="areas.index" />
                             </div>
                             <div className="space-y-1.5">
-                                <Label>Padre</Label>
-                                <Select value={form.data.parent_id} onValueChange={(v) => form.setData('parent_id', v)}>
-                                    <SelectTrigger><SelectValue placeholder="Nivel superior" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value={NONE}>Nivel superior</SelectItem>
-                                        {parents.filter((p) => p.id !== editing?.id).map((p) => (
-                                            <SelectItem key={p.id} value={String(p.id)}>{p.label}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Label htmlFor="menus-parent">Padre</Label>
+                                <Combobox
+                                    id="menus-parent"
+                                    value={form.data.parent_id === NONE ? '' : form.data.parent_id}
+                                    onChange={(v) => form.setData('parent_id', v === '' ? NONE : v)}
+                                    placeholder="Nivel superior"
+                                    clearLabel="Nivel superior"
+                                    searchPlaceholder="Buscar opción…"
+                                    options={parents.filter((p) => p.id !== editing?.id).map((p) => ({ value: String(p.id), label: p.label }))}
+                                />
                                 {form.errors.parent_id && <p className="text-sm text-destructive">{form.errors.parent_id}</p>}
                             </div>
                             <div className="space-y-1.5">
-                                <Label>Permiso (ver)</Label>
-                                <Select value={form.data.permission_name} onValueChange={(v) => form.setData('permission_name', v)}>
-                                    <SelectTrigger><SelectValue placeholder="Sin permiso" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value={NONE}>Sin permiso (visible)</SelectItem>
-                                        {permissions.map((p) => (
-                                            <SelectItem key={p} value={p}>{p}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Label htmlFor="menus-permission">Permiso (ver)</Label>
+                                <Combobox
+                                    id="menus-permission"
+                                    value={form.data.permission_name === NONE ? '' : form.data.permission_name}
+                                    onChange={(v) => form.setData('permission_name', v === '' ? NONE : v)}
+                                    placeholder="Sin permiso"
+                                    clearLabel="Sin permiso (visible)"
+                                    searchPlaceholder="Buscar permiso…"
+                                    options={permissions.map((p) => ({ value: p, label: p }))}
+                                />
                             </div>
                             <div className="space-y-1.5">
                                 <Label htmlFor="order">Orden</Label>
                                 <Input id="order" type="number" value={form.data.order} onChange={(e) => form.setData('order', e.target.value)} />
                             </div>
-                            <label className="flex items-center gap-2 text-sm sm:col-span-2">
-                                <input type="checkbox" className="rounded border-input" checked={form.data.is_active} onChange={(e) => form.setData('is_active', e.target.checked)} />
-                                Activa
-                            </label>
+                            <SwitchField id="menus-is_active" label="Activa" className="sm:col-span-2" checked={form.data.is_active} onCheckedChange={(v) => form.setData('is_active', v)} />
                         </div>
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setFormOpen(false)}>Cancelar</Button>

@@ -81,5 +81,17 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Radix sin capas duplicadas
+        # Dos copias de focus-scope/dismissable-layer rompen el foco y Escape en popovers dentro de diálogos.
+        run: |
+          for pkg in react-focus-scope react-dismissable-layer; do
+            n=$(find node_modules -path "*@radix-ui/$pkg/package.json" | wc -l)
+            if [ "$n" -ne 1 ]; then
+              echo "::error::Hay $n copias de @radix-ui/$pkg; alinea las versiones de @radix-ui/*"
+              npm ls "@radix-ui/$pkg" || true
+              exit 1
+            fi
+          done
+
       - name: Build assets (tsc + vite)
         run: npm run build

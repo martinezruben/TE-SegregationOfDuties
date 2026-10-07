@@ -17,6 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/Components/ui/alert';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 type Status = 'crear' | 'actualizar' | 'sin_cambios' | 'error';
@@ -108,76 +109,91 @@ export default function Show({ lote, canApply }: { lote: Lote; canApply: boolean
                     ))}
                 </div>
 
-                {lote.errors.length > 0 && (
-                    <Card>
-                        <CardHeader className="flex-row items-center justify-between space-y-0">
-                            <div>
-                                <CardTitle>Errores ({lote.summary.error})</CardTitle>
-                                <CardDescription>Corrige estas filas en el archivo y vuelve a subirlo.</CardDescription>
-                            </div>
-                            <Button variant="outline" size="sm" asChild>
-                                <a href={route('importaciones.errors', lote.id)}>
-                                    <Download className="size-4" /> Descargar CSV
-                                </a>
-                            </Button>
-                        </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-20">Fila</TableHead>
-                                        <TableHead>Registro</TableHead>
-                                        <TableHead>Error</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {lote.errors.map((e) => (
-                                        <TableRow key={e.line}>
-                                            <TableCell>{e.line}</TableCell>
-                                            <TableCell>{e.label}</TableCell>
-                                            <TableCell className="text-destructive">{e.message}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
-                )}
+                <Tabs defaultValue={lote.errors.length > 0 ? 'errores' : 'detalle'}>
+                    <TabsList>
+                        <TabsTrigger value="detalle">Detalle ({lote.total_rows})</TabsTrigger>
+                        <TabsTrigger value="errores">Errores ({lote.summary.error})</TabsTrigger>
+                    </TabsList>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Detalle</CardTitle>
-                        <CardDescription>
-                            {lote.total_rows > lote.preview_limit
-                                ? `Primeras ${lote.preview_limit} de ${lote.total_rows} filas.`
-                                : `${lote.total_rows} fila(s).`}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-20">Fila</TableHead>
-                                    <TableHead>Registro</TableHead>
-                                    <TableHead>Acción</TableHead>
-                                    <TableHead>Nota</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {lote.preview.map((r) => (
-                                    <TableRow key={r.line}>
-                                        <TableCell>{r.line}</TableCell>
-                                        <TableCell>{r.label}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={statusMeta[r.status].variant}>{statusMeta[r.status].label}</Badge>
-                                        </TableCell>
-                                        <TableCell className="text-xs text-muted-foreground">{r.message}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                    <TabsContent value="errores">
+                        <Card>
+                            <CardHeader className="flex-row items-center justify-between space-y-0">
+                                <div>
+                                    <CardTitle>Errores ({lote.summary.error})</CardTitle>
+                                    <CardDescription>Corrige estas filas en el archivo y vuelve a subirlo.</CardDescription>
+                                </div>
+                                {lote.errors.length > 0 && (
+                                    <Button variant="outline" size="sm" asChild>
+                                        <a href={route('importaciones.errors', lote.id)}>
+                                            <Download className="size-4" /> Descargar CSV
+                                        </a>
+                                    </Button>
+                                )}
+                            </CardHeader>
+                            <CardContent>
+                                {lote.errors.length === 0 ? (
+                                    <p className="py-6 text-center text-sm text-muted-foreground">No hay filas con error. 🎉</p>
+                                ) : (
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className="w-20">Fila</TableHead>
+                                                <TableHead>Registro</TableHead>
+                                                <TableHead>Error</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {lote.errors.map((e) => (
+                                                <TableRow key={e.line}>
+                                                    <TableCell>{e.line}</TableCell>
+                                                    <TableCell>{e.label}</TableCell>
+                                                    <TableCell className="text-destructive">{e.message}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="detalle">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Detalle</CardTitle>
+                                <CardDescription>
+                                    {lote.total_rows > lote.preview_limit
+                                        ? `Primeras ${lote.preview_limit} de ${lote.total_rows} filas.`
+                                        : `${lote.total_rows} fila(s).`}
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-20">Fila</TableHead>
+                                            <TableHead>Registro</TableHead>
+                                            <TableHead>Acción</TableHead>
+                                            <TableHead>Nota</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {lote.preview.map((r) => (
+                                            <TableRow key={r.line}>
+                                                <TableCell>{r.line}</TableCell>
+                                                <TableCell>{r.label}</TableCell>
+                                                <TableCell>
+                                                    <Badge variant={statusMeta[r.status].variant}>{statusMeta[r.status].label}</Badge>
+                                                </TableCell>
+                                                <TableCell className="text-xs text-muted-foreground">{r.message}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
 
                 {canApply && (
                     <div className="flex justify-end">

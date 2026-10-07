@@ -9,6 +9,7 @@ import { Label } from '@/Components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/Components/ui/alert';
 import { Separator } from '@/Components/ui/separator';
+import { Combobox } from '@/Components/app/Combobox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { usePermissions } from '@/hooks/usePermissions';
 import { PageProps } from '@/types';
@@ -116,22 +117,20 @@ export default function SimuladorIndex({ usuarios, aplicaciones, filters, evalua
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-1.5">
-                            <Label>Usuario gestionado</Label>
-                            <Select value={userId} onValueChange={setUserId}>
-                                <SelectTrigger><SelectValue placeholder="Selecciona un usuario…" /></SelectTrigger>
-                                <SelectContent>
-                                    {usuarios.map((u) => (
-                                        <SelectItem key={u.id} value={String(u.id)}>
-                                            {u.name} · {u.igg}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Label htmlFor="sim-user">Usuario gestionado</Label>
+                            <Combobox
+                                id="sim-user"
+                                value={userId}
+                                onChange={setUserId}
+                                placeholder="Selecciona un usuario…"
+                                searchPlaceholder="Buscar por nombre o IGG…"
+                                options={usuarios.map((u) => ({ value: String(u.id), label: u.name, description: u.igg }))}
+                            />
                         </div>
                         <div className="space-y-1.5">
-                            <Label>Aplicación</Label>
+                            <Label htmlFor="sim-app">Aplicación</Label>
                             <Select value={appId} onValueChange={(v) => { setAppId(v); setRoleId(''); }}>
-                                <SelectTrigger><SelectValue placeholder="Selecciona…" /></SelectTrigger>
+                                <SelectTrigger id="sim-app"><SelectValue placeholder="Selecciona…" /></SelectTrigger>
                                 <SelectContent>
                                     {aplicaciones.map((a) => (
                                         <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>
@@ -140,15 +139,16 @@ export default function SimuladorIndex({ usuarios, aplicaciones, filters, evalua
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <Label>Rol deseado</Label>
-                            <Select value={roleId} onValueChange={setRoleId} disabled={!appId}>
-                                <SelectTrigger><SelectValue placeholder="Selecciona…" /></SelectTrigger>
-                                <SelectContent>
-                                    {roles.map((r) => (
-                                        <SelectItem key={r.id} value={String(r.id)}>{r.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Label htmlFor="sim-role">Rol deseado</Label>
+                            <Combobox
+                                id="sim-role"
+                                value={roleId}
+                                onChange={setRoleId}
+                                disabled={!appId}
+                                placeholder={appId ? 'Selecciona un rol…' : 'Primero elige la aplicación'}
+                                searchPlaceholder="Buscar rol…"
+                                options={roles.map((r) => ({ value: String(r.id), label: r.name }))}
+                            />
                         </div>
                         <Button onClick={simulate} disabled={!userId || !roleId} className="w-full">
                             Simular

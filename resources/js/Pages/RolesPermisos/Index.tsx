@@ -4,6 +4,8 @@ import { Lock, Save } from 'lucide-react';
 
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/button';
+import { Label } from '@/Components/ui/label';
+import { Checkbox } from '@/Components/ui/checkbox';
 import { Badge } from '@/Components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Separator } from '@/Components/ui/separator';
@@ -109,16 +111,15 @@ export default function RolesPermisosIndex({ roles, groups, canEdit }: Props) {
                                 </div>
                                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
                                     {g.permissions.map((p) => (
-                                        <label key={p.name} className={cn('flex items-center gap-2 text-sm', !editable && 'opacity-70')}>
-                                            <input
-                                                type="checkbox"
-                                                className="rounded border-input"
+                                        <div key={p.name} className={cn('flex items-center gap-2 text-sm', !editable && 'opacity-70')}>
+                                            <Checkbox
+                                                id={`perm-${p.name}`}
                                                 checked={selected?.protected ? true : checked.has(p.name)}
                                                 disabled={!editable}
-                                                onChange={() => toggle(p.name)}
+                                                onCheckedChange={() => toggle(p.name)}
                                             />
-                                            {p.action}
-                                        </label>
+                                            <Label htmlFor={`perm-${p.name}`} className="font-normal">{p.action}</Label>
+                                        </div>
                                     ))}
                                 </div>
                                 <Separator className="mt-3" />

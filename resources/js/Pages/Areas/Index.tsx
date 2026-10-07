@@ -6,6 +6,7 @@ import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import { Input } from '@/Components/ui/input';
+import { SwitchField } from '@/Components/app/SwitchField';
 import { Label } from '@/Components/ui/label';
 import {
     Card,
@@ -251,15 +252,7 @@ export default function AreasIndex({ areas, filters, can }: Props) {
                                 />
                                 {form.errors.code && <p className="text-sm text-destructive">{form.errors.code}</p>}
                             </div>
-                            <label className="flex items-center gap-2 text-sm">
-                                <input
-                                    type="checkbox"
-                                    className="rounded border-input"
-                                    checked={form.data.is_active}
-                                    onChange={(e) => form.setData('is_active', e.target.checked)}
-                                />
-                                Activa
-                            </label>
+                            <SwitchField id="areas-is_active" label="Activa" checked={form.data.is_active} onCheckedChange={(v) => form.setData('is_active', v)} />
                         </div>
 
                         <DialogFooter>

@@ -8,6 +8,7 @@ import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Combobox } from '@/Components/app/Combobox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 import { PageProps } from '@/types';
@@ -141,19 +142,16 @@ export default function SolicitudesIndex({ solicitudes, filters, opciones }: Pro
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Rol</Label>
-                            <Select
-                                value={f.role_id ? String(f.role_id) : ALL}
-                                onValueChange={(v) => set('role_id', v === ALL ? null : Number(v))}
-                            >
-                                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={ALL}>Todos</SelectItem>
-                                    {roles.map((r) => (
-                                        <SelectItem key={r.id} value={String(r.id)}>{r.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Label htmlFor="filtro-role_id" className="text-xs">Rol</Label>
+                            <Combobox
+                                id="filtro-role_id"
+                                value={f.role_id ? String(f.role_id) : ''}
+                                onChange={(v) => set('role_id', v === '' ? null : Number(v))}
+                                placeholder="Todos"
+                                clearLabel="Todos"
+                                searchPlaceholder="Buscar rol…"
+                                options={roles.map((r) => ({ value: String(r.id), label: r.name, description: opciones.aplicaciones.find((a) => a.id === r.application_id)?.name }))}
+                            />
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-xs">Estado</Label>
