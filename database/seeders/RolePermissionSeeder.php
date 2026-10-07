@@ -36,6 +36,7 @@ class RolePermissionSeeder extends Seeder
         'reportes' => ['ver', 'exportar'],
         'bitacora' => ['ver'],
         'importaciones' => ['ver', 'crear'],
+        'certificaciones' => ['ver', 'crear', 'revisar', 'auditar'],
     ];
 
     public function run(): void
@@ -52,8 +53,8 @@ class RolePermissionSeeder extends Seeder
 
         // Helpers para componer conjuntos de permisos.
         $only = fn (array $names) => $names;
-        // Importaciones queda fuera de los roles de solo lectura: es una herramienta operativa.
-        $allViews = array_values(array_filter($all, fn ($p) => str_ends_with($p, '.ver') && $p !== 'importaciones.ver'));
+        // Importaciones y certificaciones quedan fuera de los roles de solo lectura genéricos: se asignan explícitamente.
+        $allViews = array_values(array_filter($all, fn ($p) => str_ends_with($p, '.ver') && $p !== 'importaciones.ver' && $p !== 'certificaciones.ver'));
         $matrizAll = array_values(array_filter($all, fn ($p) => str_starts_with($p, 'matriz.')));
         $autorizacionesAll = array_values(array_filter($all, fn ($p) => str_starts_with($p, 'autorizaciones.')));
 
@@ -65,11 +66,12 @@ class RolePermissionSeeder extends Seeder
             'Gestor de Seguridad' => array_merge($matrizAll, $autorizacionesAll, [
                 'solicitudes.ver', 'solicitudes.autorizar', 'solicitudes.autorizar_mayor',
                 'reportes.ver', 'reportes.exportar', 'bitacora.ver', 'dashboard.ver',
+                'certificaciones.ver', 'certificaciones.crear', 'certificaciones.revisar', 'certificaciones.auditar',
             ]),
-            'Owner de Aplicación' => $only(['dashboard.ver', 'aplicaciones.ver', 'solicitudes.ver', 'solicitudes.autorizar']),
-            'Jefe' => $only(['dashboard.ver', 'solicitudes.ver', 'solicitudes.autorizar']),
+            'Owner de Aplicación' => $only(['dashboard.ver', 'aplicaciones.ver', 'solicitudes.ver', 'solicitudes.autorizar', 'certificaciones.ver', 'certificaciones.revisar']),
+            'Jefe' => $only(['dashboard.ver', 'solicitudes.ver', 'solicitudes.autorizar', 'certificaciones.ver', 'certificaciones.revisar']),
             'Solicitante' => $only(['dashboard.ver', 'simulador.ver', 'solicitudes.ver', 'solicitudes.crear']),
-            'Auditor' => array_merge($allViews, ['reportes.exportar']),
+            'Auditor' => array_merge($allViews, ['reportes.exportar', 'certificaciones.ver', 'certificaciones.auditar']),
         ];
 
         foreach ($roles as $roleName => $permissions) {

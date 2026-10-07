@@ -64,6 +64,7 @@ class MenuSeeder extends Seeder
         $child2(['label' => 'Solicitudes', 'icon' => 'file-check', 'route' => 'solicitudes.index', 'permission_name' => 'solicitudes.ver']);
         $child2(['label' => 'Reporte de accesos', 'icon' => 'table-2', 'route' => 'reportes.accesos', 'permission_name' => 'reportes.ver']);
         $child2(['label' => 'Conflictos activos', 'icon' => 'shield-alert', 'route' => 'reportes.conflictos', 'permission_name' => 'reportes.ver']);
+        $child2(['label' => 'Recertificación', 'icon' => 'badge-check', 'route' => 'certificaciones.index', 'permission_name' => 'certificaciones.ver']);
         $child2(['label' => 'Excepciones', 'icon' => 'file-warning', 'route' => 'reportes.excepciones', 'permission_name' => 'reportes.ver']);
 
         // Grupo: Administración

@@ -568,7 +568,11 @@ Vía **Laravel Notifications** (canales `mail` + `database`, extensible a Slack/
 * **Reporte de Conflictos Activos** *(implementado, *Segregación → Conflictos activos*)*: cruza a nivel SQL la foto vigente (excluye accesos expirados, usuarios/roles eliminados y pares inactivos) contra la matriz SoD. Cada conflicto indica si tiene **excepción formal** (una solicitud aprobada que registró ese mismo conflicto) o si vino por importación/carga manual **sin excepción**. Filtros: usuario, aplicación, área, cargo, riesgo y excepción; exporta CSV. El dashboard muestra el total a quien tenga `reportes.ver`.
 * **Matriz de Accesos por Usuario/Cargo/Aplicación.**
 * **Reporte de Excepciones** *(implementado, *Segregación → Excepciones*)*: solicitudes aprobadas con conflicto SoD, con conflictos aceptados y riesgo máximo, justificación, solicitante, fecha y aprobadores con sus comentarios. Filtros: búsqueda, aplicación, riesgo y rango de fechas; exporta CSV.
-* **Reporte de Certificación de Accesos** (recertificación periódica).
+* **Recertificación de accesos** *(implementado, *Segregación → Recertificación*; permisos `certificaciones.ver / crear / revisar / auditar`)*:
+  * Una **campaña** toma una foto de los accesos vigentes (filtrable por aplicación, área o solo los que participan en conflictos SoD) y asigna un **revisor por acceso**: owner de la aplicación → supervisor del usuario → Gestor de Seguridad → quien creó la campaña.
+  * Cada revisor **mantiene** o **revoca** (con motivo obligatorio) sus accesos, individualmente o en lote. Revocar retira el acceso de la foto de inmediato; la baja técnica en el sistema destino sigue siendo manual. Las decisiones son definitivas y quedan con autor y fecha.
+  * La campaña se cierra sola al resolverse todo, o manualmente (lo pendiente queda como "sin respuesta"). Hay avance por revisor y **exportación CSV** como evidencia para auditoría.
+  * Avisos por correo y campana al asignar, y recordatorio diario (`certifications:remind`) cuando faltan `SOD_CERT_REMINDER_DAYS` (3) días o ya venció.
 
 ---
 
@@ -715,4 +719,4 @@ components.json                # Config de shadcn/ui (style, baseColor, alias)
 | **Fase 3 — Workflow** | Solicitudes (asignación/movimiento/modificación), motor de autorizaciones con auto-aprobación y autorización mayor, notificaciones. |
 | **Fase 4 — Auditoría y Reportes** | Bitácora, dashboards, reportes exportables, import/export Excel. |
 | **Fase 5 — API e Integraciones** | API v1 con Sanctum, documentación OpenAPI. |
-| **Fase 6 — Madurez** | Recertificación de accesos, SSO/SAML, aprovisionamiento automático (IGA). |
+| **Fase 6 — Madurez** | ~~Recertificación de accesos~~ (hecho), SSO/SAML, aprovisionamiento automático (IGA). |

@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 // Recordatorios de aprobaciones vencidas (requiere `php artisan schedule:run` en cron cada minuto).
 Schedule::command('approvals:remind')->hourly()->withoutOverlapping();
+Schedule::command('certifications:remind')->dailyAt('08:00')->withoutOverlapping();

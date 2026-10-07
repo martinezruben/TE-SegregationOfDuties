@@ -21,4 +21,13 @@ return [
         'reminder_every_hours' => (int) env('SOD_SLA_REMINDER_EVERY_HOURS', 24),
         'max_reminders' => (int) env('SOD_SLA_MAX_REMINDERS', 5),
     ],
+
+    /*
+    | Recertificación de accesos (context.md §20).
+    | Se recuerda a los revisores con pendientes cuando la campaña vence en
+    | `reminder_days_before` días o ya venció (máximo una vez al día).
+    */
+    'certification' => [
+        'reminder_days_before' => (int) env('SOD_CERT_REMINDER_DAYS', 3),
+    ],
 ];

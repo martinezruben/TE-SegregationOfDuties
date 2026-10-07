@@ -1,6 +1,7 @@
 import {
     AppWindow,
     Badge,
+    BadgeCheck,
     Circle,
     FileCheck,
     FileWarning,
@@ -40,6 +41,7 @@ const map: Record<string, LucideIcon> = {
     'list-tree': ListTree,
     'scroll-text': ScrollText,
     upload: Upload,
+    'badge-check': BadgeCheck,
     'file-warning': FileWarning,
     'user-check': UserCheck,
     'table-2': Table2,
