@@ -6,7 +6,9 @@ use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AreaController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\AuthorizationRuleController;
+use App\Http\Controllers\ConflictReportController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ExceptionReportController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\JobPositionController;
 use App\Http\Controllers\JobPositionRuleController;
@@ -87,6 +89,10 @@ Route::middleware(['auth', 'verified', '2fa'])->group(function () {
     // Reportes
     Route::get('reportes/accesos', [AccessReportController::class, 'index'])->name('reportes.accesos');
     Route::get('reportes/accesos/export', [AccessReportController::class, 'export'])->name('reportes.accesos.export');
+    Route::get('reportes/conflictos', [ConflictReportController::class, 'index'])->name('reportes.conflictos');
+    Route::get('reportes/conflictos/export', [ConflictReportController::class, 'export'])->name('reportes.conflictos.export');
+    Route::get('reportes/excepciones', [ExceptionReportController::class, 'index'])->name('reportes.excepciones');
+    Route::get('reportes/excepciones/export', [ExceptionReportController::class, 'export'])->name('reportes.excepciones.export');
 
     // Importación masiva con dry-run (Foto y usuarios gestionados)
     Route::get('importaciones', [ImportController::class, 'index'])->name('importaciones.index');

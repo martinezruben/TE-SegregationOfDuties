@@ -22,6 +22,7 @@ type Props = PageProps<{
     kpis: {
         autorizaciones_pendientes: number;
         conflictos_abiertos: number;
+        conflictos_activos: number | null;
         aprobadas_hoy: number;
         mis_solicitudes: number;
     };
@@ -39,6 +40,9 @@ export default function Dashboard({ kpis, pendientes }: Props) {
     const cards = [
         { label: 'Autorizaciones pendientes', value: kpis.autorizaciones_pendientes, icon: <Clock className="text-info" />, hint: 'Asignadas a ti' },
         { label: 'Conflictos SoD abiertos', value: kpis.conflictos_abiertos, icon: <ShieldAlert className="text-destructive" />, hint: 'En solicitudes' },
+        ...(kpis.conflictos_activos !== null
+            ? [{ label: 'Conflictos en la foto', value: kpis.conflictos_activos, icon: <ShieldAlert className="text-warning" />, hint: 'Accesos vigentes en conflicto', href: route('reportes.conflictos') }]
+            : []),
         { label: 'Aprobadas hoy', value: kpis.aprobadas_hoy, icon: <CheckCircle2 className="text-success" />, hint: 'Últimas 24h' },
         { label: 'Mis solicitudes', value: kpis.mis_solicitudes, icon: <FileWarning className="text-warning" />, hint: 'En proceso' },
     ];
@@ -48,16 +52,18 @@ export default function Dashboard({ kpis, pendientes }: Props) {
             <Head title="Dashboard" />
 
             <div className="w-full space-y-6">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                     {cards.map((k) => (
-                        <Card key={k.label}>
+                        <Card key={k.label} className={'href' in k ? 'transition-colors hover:bg-accent/40' : undefined}>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium text-muted-foreground">{k.label}</CardTitle>
                                 <span className="[&_svg]:size-5">{k.icon}</span>
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold">{k.value}</div>
-                                <p className="text-xs text-muted-foreground">{k.hint}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {'href' in k ? <Link href={k.href as string} className="underline">{k.hint}</Link> : k.hint}
+                                </p>
                             </CardContent>
                         </Card>
                     ))}

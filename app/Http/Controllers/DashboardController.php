@@ -5,13 +5,14 @@ namespace App\Http\Controllers;
 use App\Enums\RequestStatus;
 use App\Models\RequestApproval;
 use App\Models\RoleRequest;
+use App\Services\ConflictScanner;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, ConflictScanner $scanner): Response
     {
         $user = $request->user();
 
@@ -47,6 +48,8 @@ class DashboardController extends Controller
                     ->where('has_sod_conflict', true)->count(),
                 'aprobadas_hoy' => RoleRequest::whereIn('status', [RequestStatus::Aprobado->value, RequestStatus::AutoAprobado->value])
                     ->whereDate('updated_at', today())->count(),
+                // Conflictos que ya existen en la foto (solo para quien puede ver reportes).
+                'conflictos_activos' => $user->can('reportes.ver') ? $scanner->summary()['total'] : null,
                 'mis_solicitudes' => RoleRequest::where('requester_id', $user->id)
                     ->whereIn('status', [RequestStatus::Pendiente->value, RequestStatus::EnAprobacion->value])->count(),
             ],

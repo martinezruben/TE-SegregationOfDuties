@@ -3,6 +3,7 @@ import {
     Badge,
     Circle,
     FileCheck,
+    FileWarning,
     FlaskConical,
     Folder,
     Grid3x3,
@@ -39,6 +40,7 @@ const map: Record<string, LucideIcon> = {
     'list-tree': ListTree,
     'scroll-text': ScrollText,
     upload: Upload,
+    'file-warning': FileWarning,
     'user-check': UserCheck,
     'table-2': Table2,
 };
