@@ -6,6 +6,7 @@ use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AreaController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\AuthorizationRuleController;
+use App\Http\Controllers\CertificationController;
 use App\Http\Controllers\ConflictReportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExceptionReportController;
@@ -93,6 +94,14 @@ Route::middleware(['auth', 'verified', '2fa'])->group(function () {
     Route::get('reportes/conflictos/export', [ConflictReportController::class, 'export'])->name('reportes.conflictos.export');
     Route::get('reportes/excepciones', [ExceptionReportController::class, 'index'])->name('reportes.excepciones');
     Route::get('reportes/excepciones/export', [ExceptionReportController::class, 'export'])->name('reportes.excepciones.export');
+
+    // Recertificación periódica de accesos
+    Route::get('certificaciones', [CertificationController::class, 'index'])->name('certificaciones.index');
+    Route::post('certificaciones', [CertificationController::class, 'store'])->name('certificaciones.store');
+    Route::get('certificaciones/{campana}', [CertificationController::class, 'show'])->name('certificaciones.show');
+    Route::post('certificaciones/{campana}/decidir', [CertificationController::class, 'decide'])->name('certificaciones.decide');
+    Route::post('certificaciones/{campana}/cerrar', [CertificationController::class, 'close'])->name('certificaciones.close');
+    Route::get('certificaciones/{campana}/export', [CertificationController::class, 'export'])->name('certificaciones.export');
 
     // Importación masiva con dry-run (Foto y usuarios gestionados)
     Route::get('importaciones', [ImportController::class, 'index'])->name('importaciones.index');
