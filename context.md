@@ -595,6 +595,12 @@ API versionada (`/api/v1`) protegida con **Laravel Sanctum** (tokens) para integ
 ## 14. Importación / Exportación de Datos
 
 * **Importación de la "Foto"** desde Excel/CSV con **Laravel Excel**: validación por fila, reporte de errores, importación en cola (Jobs) para archivos grandes y confirmación previa (dry-run).
+
+**Implementación (estado actual) — menú *Catálogos → Importar datos* (`importaciones.ver` / `importaciones.crear`):**
+* Flujo en dos pasos: **subir → vista previa (dry-run, no escribe nada) → confirmar y aplicar**. Al aplicar se **re-valida** contra los datos vigentes, se omiten las filas con error y todo ocurre en una transacción. Un lote no puede aplicarse dos veces.
+* Tipos: **Foto** (`igg, aplicacion, rol, fecha_asignacion, expira`; exige además `foto.editar`; solo agrega o actualiza vigencia, nunca quita accesos; `source = import`) y **Usuarios gestionados** (`id, igg, nombre, area, cargo, supervisor_email, activo`; exige además `gestionados.crear`; cruza por IGG, no crea áreas ni cargos).
+* Admite CSV (coma o punto y coma, UTF-8/Latin-1) y XLSX (incluye fechas serial de Excel). Máx. 5 MB y 5000 filas. Plantillas y CSV de errores descargables (con neutralización de fórmulas).
+* Pendiente: procesamiento en cola para archivos grandes, y modo "reemplazar" (sincronizar quitando accesos ausentes).
 * **Importación de catálogos** (usuarios, roles, matriz SoD) con plantillas descargables.
 * **Exportación** de cualquier reporte a Excel/PDF respetando los permisos del usuario.
 

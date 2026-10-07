@@ -53,6 +53,7 @@ class MenuSeeder extends Seeder
         $child(['label' => 'Cargos', 'icon' => 'badge', 'route' => 'cargos.index', 'permission_name' => 'cargos.ver']);
         $child(['label' => 'Usuarios gestionados', 'icon' => 'users', 'route' => 'gestionados.index', 'permission_name' => 'gestionados.ver']);
         $child(['label' => 'Aplicaciones', 'icon' => 'app-window', 'route' => 'aplicaciones.index', 'permission_name' => 'aplicaciones.ver']);
+        $child(['label' => 'Importar datos', 'icon' => 'upload', 'route' => 'importaciones.index', 'permission_name' => 'importaciones.ver']);
 
         // Grupo: SoD
         $sod = $make(['label' => 'Segregación (SoD)', 'icon' => 'shield-alert', 'permission_name' => null]);
