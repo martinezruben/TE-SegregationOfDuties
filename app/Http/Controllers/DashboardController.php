@@ -6,13 +6,14 @@ use App\Enums\RequestStatus;
 use App\Models\RequestApproval;
 use App\Models\RoleRequest;
 use App\Services\ConflictScanner;
+use App\Services\DashboardCharts;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request, ConflictScanner $scanner): Response
+    public function index(Request $request, ConflictScanner $scanner, DashboardCharts $charts): Response
     {
         $user = $request->user();
 
@@ -42,6 +43,8 @@ class DashboardController extends Controller
 
         return Inertia::render('Dashboard', [
             'pendientes' => $pendientes,
+            // Gráficos agregados de toda la organización: solo con permiso de reportes.
+            'charts' => $user->can('reportes.ver') ? $charts->build(DashboardCharts::period($request->query('days'))) : null,
             'kpis' => [
                 'autorizaciones_pendientes' => $pendientes->count(),
                 'conflictos_abiertos' => RoleRequest::whereIn('status', [RequestStatus::Pendiente->value, RequestStatus::EnAprobacion->value])
