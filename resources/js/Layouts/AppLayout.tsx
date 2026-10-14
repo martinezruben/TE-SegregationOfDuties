@@ -1,7 +1,5 @@
-import { usePage } from '@inertiajs/react';
 import { Menu as MenuIcon } from 'lucide-react';
-import { PropsWithChildren, ReactNode, useEffect } from 'react';
-import { toast } from 'sonner';
+import { PropsWithChildren, ReactNode } from 'react';
 
 import { Breadcrumbs } from '@/Components/app/Breadcrumbs';
 import { CommandPalette } from '@/Components/app/CommandPalette';
@@ -16,19 +14,14 @@ import {
     SheetTrigger,
 } from '@/Components/ui/sheet';
 import { Toaster } from '@/Components/ui/sonner';
-import { PageProps } from '@/types';
+import { useFlashToasts } from '@/hooks/useFlashToasts';
 
 export default function AppLayout({
     title,
     header,
     children,
 }: PropsWithChildren<{ title?: string; header?: ReactNode }>) {
-    const { flash } = usePage<PageProps>().props;
-
-    useEffect(() => {
-        if (flash?.success) toast.success(flash.success);
-        if (flash?.error) toast.error(flash.error);
-    }, [flash]);
+    useFlashToasts();
 
     return (
         <>

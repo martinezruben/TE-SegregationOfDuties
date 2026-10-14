@@ -73,3 +73,16 @@ npm run lint       # ESLint (front)
 ```
 
 CI en `.github/workflows/tests.yml` (backend multi-PHP + build de frontend).
+
+## Despliegue y error 419 (Page expired)
+
+Un **419** al iniciar sesión significa que el token CSRF de la petición no coincide con el de la sesión, es decir, que la cookie de sesión no llegó. Causas habituales:
+
+| Causa | Qué hacer |
+|---|---|
+| Página de login abierta más de `SESSION_LIFETIME` minutos, o cookies bloqueadas | La app ya muestra el aviso «Tu sesión expiró…» y permite reintentar de inmediato. |
+| Proxy/balanceador que termina HTTPS (Azure, Railway, nginx, Cloudflare…) sin ser de confianza | `TRUSTED_PROXIES=*` (o la lista de IPs del proxy) y `SESSION_SECURE_COOKIE=true`. |
+| `APP_URL`, `SESSION_DOMAIN` o `SESSION_SECURE_COOKIE` que no corresponden al dominio real | Alinearlos con la URL pública (`https://…`); `SESSION_DOMAIN` vacío salvo que se necesite. |
+| `APP_KEY` cambiada | Invalida las sesiones y **también los secretos de 2FA** (están cifrados con ella): no la rotes sin plan. |
+
+Producción: `APP_ENV=production` y `APP_DEBUG=false`. Con `TRUSTED_PROXIES=*` se confía en las cabeceras `X-Forwarded-*` de cualquier origen; úsalo solo si la app **solo** es alcanzable a través del proxy.
