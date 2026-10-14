@@ -30,4 +30,21 @@ return [
     'certification' => [
         'reminder_days_before' => (int) env('SOD_CERT_REMINDER_DAYS', 3),
     ],
+
+    /*
+    | HTTP detrás de proxy / balanceador (Caddy, nginx, Cloudflare, Azure, Railway…).
+    |
+    | Si el HTTPS lo termina un proxy, Laravel ve la petición como http y genera URLs http://
+    | (redirecciones y las rutas de Ziggy que usa el formulario de login). El navegador las trata como
+    | otro origen: no envía el token CSRF ni las cookies `secure` y el login da 419.
+    |
+    | - trusted_proxies: TRUSTED_PROXIES="*" (o IPs/CIDR separados por coma). Por defecto ninguno.
+    | - force_https: FORCE_HTTPS=true/false. Si no se define, se activa solo cuando APP_URL empieza por https://.
+    |
+    | Va en config (no con env() en bootstrap/app.php) para que funcione también con `config:cache`.
+    */
+    'http' => [
+        'trusted_proxies' => env('TRUSTED_PROXIES'),
+        'force_https' => env('FORCE_HTTPS'),
+    ],
 ];

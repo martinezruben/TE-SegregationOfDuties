@@ -25,12 +25,6 @@ return Application::configure(basePath: dirname(__DIR__))
             '2fa' => EnsureTwoFactorEnabled::class,
         ]);
 
-        // Detrás de un proxy/balanceador que termina HTTPS (Azure, Railway, nginx…) Laravel debe confiar en él
-        // para ver el esquema y el host reales. Sin esto, algunos despliegues pierden la sesión y dan 419.
-        // TRUSTED_PROXIES="*" confía en todos; o una lista de IPs/CIDR separada por comas. Por defecto, ninguno.
-        if ($proxies = env('TRUSTED_PROXIES')) {
-            $middleware->trustProxies(at: $proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)));
-        }
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // 419 (token CSRF inválido o sesión expirada): en vez de la página "419 PAGE EXPIRED" sin salida,
