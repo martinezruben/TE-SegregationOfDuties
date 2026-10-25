@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ListChecks, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ListChecks, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
 
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/button';
@@ -20,6 +20,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
+import { Combobox } from '@/Components/app/Combobox';
 import { SwitchField } from '@/Components/app/SwitchField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { PageProps } from '@/types';
@@ -51,25 +52,51 @@ interface Paginated<T> {
 type Props = PageProps<{
     cargos: Paginated<Cargo>;
     genericos: Generic[];
-    filters: { search: string };
+    filters: Filters;
     can: { create: boolean; update: boolean; delete: boolean };
 }>;
 
+interface Filters {
+    search: string;
+    type: string | null;
+    generic_position_id: number | null;
+    status: string | null;
+}
+
 const NONE = 'none';
+const ALL = 'all';
 
 export default function CargosIndex({ cargos, genericos, filters, can }: Props) {
-    const [search, setSearch] = useState(filters.search ?? '');
+    const [f, setF] = useState<Filters>(filters);
     const [formOpen, setFormOpen] = useState(false);
     const [editing, setEditing] = useState<Cargo | null>(null);
     const [deleting, setDeleting] = useState<Cargo | null>(null);
+    const hasFilters = !!(f.search || f.type || f.generic_position_id || f.status);
 
+    const go = (next: Filters) => {
+        const params: Record<string, string> = {};
+        Object.entries(next).forEach(([k, v]) => {
+            if (v !== null && v !== '') params[k] = String(v);
+        });
+        router.get(route('cargos.index'), params, { preserveState: true, preserveScroll: true, replace: true });
+    };
+    const apply = (over: Partial<Filters>) => {
+        const next = { ...f, ...over };
+        setF(next);
+        go(next);
+    };
+    const reset = () => {
+        const empty: Filters = { search: '', type: null, generic_position_id: null, status: null };
+        setF(empty);
+        go(empty);
+    };
+
+    // La búsqueda de texto se envía sola tras una pausa al escribir.
     useEffect(() => {
-        const t = setTimeout(() => {
-            if (search === (filters.search ?? '')) return;
-            router.get(route('cargos.index'), { search }, { preserveState: true, replace: true });
-        }, 300);
+        if (f.search === (filters.search ?? '')) return;
+        const t = setTimeout(() => go(f), 300);
         return () => clearTimeout(t);
-    }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [f.search]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const form = useForm<{
         name: string;
@@ -142,14 +169,55 @@ export default function CargosIndex({ cargos, genericos, filters, can }: Props) 
                     )}
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="relative max-w-sm">
-                        <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Buscar por nombre…"
-                            className="pl-8"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
+                    <div className="grid grid-cols-1 gap-3 rounded-lg border bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-5">
+                        <div className="space-y-1.5 lg:col-span-2">
+                            <Label htmlFor="cargos-search" className="text-xs">Buscar (nombre o descripción)</Label>
+                            <div className="relative">
+                                <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                                <Input id="cargos-search" className="pl-8" placeholder="Escribe para filtrar…" value={f.search} onChange={(e) => setF((p) => ({ ...p, search: e.target.value }))} />
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Tipo</Label>
+                            <Select value={f.type ?? ALL} onValueChange={(v) => apply({ type: v === ALL ? null : v })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={ALL}>Todos</SelectItem>
+                                    <SelectItem value="generico">Genérico</SelectItem>
+                                    <SelectItem value="especifico">Específico</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="cargos-generic" className="text-xs">Cargo genérico</Label>
+                            <Combobox
+                                id="cargos-generic"
+                                value={f.generic_position_id ? String(f.generic_position_id) : ''}
+                                onChange={(v) => apply({ generic_position_id: v ? Number(v) : null })}
+                                placeholder="Todos"
+                                clearLabel="Todos"
+                                searchPlaceholder="Buscar cargo…"
+                                options={genericos.map((g) => ({ value: String(g.id), label: g.name }))}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Estado</Label>
+                            <div className="flex gap-2">
+                                <Select value={f.status ?? ALL} onValueChange={(v) => apply({ status: v === ALL ? null : v })}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={ALL}>Todos</SelectItem>
+                                        <SelectItem value="activo">Activo</SelectItem>
+                                        <SelectItem value="inactivo">Inactivo</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {hasFilters && (
+                                    <Button variant="outline" size="icon" onClick={reset} aria-label="Limpiar filtros" title="Limpiar filtros">
+                                        <RotateCcw className="size-4" />
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     <Table>

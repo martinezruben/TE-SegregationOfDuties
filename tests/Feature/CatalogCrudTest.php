@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Area;
 use App\Models\JobPosition;
+use App\Models\ManagedUser;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -114,5 +115,47 @@ class CatalogCrudTest extends TestCase
             'external_id' => 'E9', 'igg' => 'IGG9', 'name' => 'Z',
             'area_id' => $area->id, 'job_position_id' => $cargo->id,
         ])->assertForbidden();
+    }
+
+    public function test_cargos_can_be_filtered(): void
+    {
+        $this->actingAsRole('Administrador');
+        $gen = JobPosition::create(['name' => 'Analista (gen)', 'is_generic' => true, 'is_active' => true]);
+        JobPosition::create(['name' => 'Analista Sr', 'is_generic' => false, 'is_active' => true, 'generic_position_id' => $gen->id]);
+        JobPosition::create(['name' => 'Gerente', 'description' => 'Dirige el área', 'is_generic' => false, 'is_active' => false]);
+
+        $count = fn (string $qs) => $this->get('/cargos'.$qs)->viewData('page')['props']['cargos']['total'];
+
+        $this->assertSame(3, $count(''));
+        $this->assertSame(2, $count('?search=analista'));
+        $this->assertSame(1, $count('?search=dirige'));
+        $this->assertSame(1, $count('?type=generico'));
+        $this->assertSame(2, $count('?type=especifico'));
+        $this->assertSame(1, $count('?generic_position_id='.$gen->id));
+        $this->assertSame(1, $count('?status=inactivo'));
+        $this->assertSame(0, $count('?search=analista&status=inactivo'));
+    }
+
+    public function test_managed_users_can_be_filtered(): void
+    {
+        $admin = $this->actingAsRole('Administrador');
+        $ti = Area::create(['code' => 'TI', 'name' => 'TI']);
+        $fin = Area::create(['code' => 'FIN', 'name' => 'Finanzas']);
+        $cargo = JobPosition::create(['name' => 'Analista', 'is_active' => true]);
+
+        ManagedUser::create(['external_id' => 'E1', 'igg' => 'ig1', 'name' => 'Ana', 'area_id' => $ti->id, 'job_position_id' => $cargo->id, 'supervisor_id' => $admin->id, 'is_active' => true]);
+        ManagedUser::create(['external_id' => 'E2', 'igg' => 'ig2', 'name' => 'Beto', 'area_id' => $fin->id, 'is_active' => false]);
+
+        $count = fn (string $qs) => $this->get('/gestionados'.$qs)->viewData('page')['props']['usuarios']['total'];
+
+        $this->assertSame(2, $count(''));
+        $this->assertSame(1, $count('?search=ig2'));
+        $this->assertSame(1, $count('?area_id='.$ti->id));
+        $this->assertSame(1, $count('?job_position_id='.$cargo->id));
+        $this->assertSame(1, $count('?supervisor='.$admin->id));
+        $this->assertSame(1, $count('?supervisor=none'));
+        $this->assertSame(1, $count('?status=inactivo'));
+        // El texto y los demás filtros se combinan con AND (no se cuela el OR de la búsqueda).
+        $this->assertSame(0, $count('?search=ana&area_id='.$fin->id));
     }
 }

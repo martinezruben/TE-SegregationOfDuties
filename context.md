@@ -374,6 +374,7 @@ menus ──< menus (parent_id)                        (árbol jerárquico)
 * **CRUD de Usuarios Gestionados:** pantalla para crear la población gobernada con **ID, IGG, Nombre, Área (selector de áreas) y Cargo (selector de cargos)**, estado activo/inactivo. Importación masiva vía Excel además del alta manual.
 * **CRUD de Agentes/Operadores y RBAC:** ver §8.5 (usuarios con login, roles y permisos).
 * **Actualización de la "Foto":** Interfaz para sincronizar manualmente o importar vía Excel los roles que actualmente poseen los **usuarios gestionados**, con vista previa y validación antes de confirmar.
+* **Filtros en listados:** *Cargos* filtra por texto (nombre/descripción), tipo (genérico/específico), cargo genérico y estado. *Usuarios gestionados* filtra por texto (nombre/ID/IGG), área, cargo, supervisor (incluye «sin supervisor asignado») y estado. Los filtros viajan en la URL y se combinan entre sí.
 
 ### 8.2 Módulo Gestor de Reglas (Matriz SoD y Cargos)
 * **Matriz SoD:** pantalla para definir conflictos cruzados entre roles (y opciones). Selección de Rol A y Rol B mediante menús desplegables dependientes (aplicación → rol) y nivel de riesgo. Previene duplicados invertidos y auto-conflicto.

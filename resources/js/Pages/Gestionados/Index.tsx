@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
 
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/button';
@@ -58,25 +58,52 @@ type Props = PageProps<{
     areas: Option[];
     cargos: Option[];
     supervisores: Option[];
-    filters: { search: string };
+    filters: Filters;
     can: { create: boolean; update: boolean; delete: boolean };
 }>;
 
+interface Filters {
+    search: string;
+    area_id: number | null;
+    job_position_id: number | null;
+    supervisor: string | null;
+    status: string | null;
+}
+
 const NONE = 'none';
+const ALL = 'all';
 
 export default function GestionadosIndex({ usuarios, areas, cargos, supervisores, filters, can }: Props) {
-    const [search, setSearch] = useState(filters.search ?? '');
+    const [f, setF] = useState<Filters>(filters);
     const [formOpen, setFormOpen] = useState(false);
     const [editing, setEditing] = useState<Managed | null>(null);
     const [deleting, setDeleting] = useState<Managed | null>(null);
+    const hasFilters = !!(f.search || f.area_id || f.job_position_id || f.supervisor || f.status);
 
+    const go = (next: Filters) => {
+        const params: Record<string, string> = {};
+        Object.entries(next).forEach(([k, v]) => {
+            if (v !== null && v !== '') params[k] = String(v);
+        });
+        router.get(route('gestionados.index'), params, { preserveState: true, preserveScroll: true, replace: true });
+    };
+    const apply = (over: Partial<Filters>) => {
+        const next = { ...f, ...over };
+        setF(next);
+        go(next);
+    };
+    const reset = () => {
+        const empty: Filters = { search: '', area_id: null, job_position_id: null, supervisor: null, status: null };
+        setF(empty);
+        go(empty);
+    };
+
+    // La búsqueda de texto se envía sola tras una pausa al escribir.
     useEffect(() => {
-        const t = setTimeout(() => {
-            if (search === (filters.search ?? '')) return;
-            router.get(route('gestionados.index'), { search }, { preserveState: true, replace: true });
-        }, 300);
+        if (f.search === (filters.search ?? '')) return;
+        const t = setTimeout(() => go(f), 300);
         return () => clearTimeout(t);
-    }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [f.search]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const form = useForm<{
         external_id: string;
@@ -151,14 +178,64 @@ export default function GestionadosIndex({ usuarios, areas, cargos, supervisores
                     )}
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="relative max-w-sm">
-                        <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Buscar por nombre, ID o IGG…"
-                            className="pl-8"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
+                    <div className="grid grid-cols-1 gap-3 rounded-lg border bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="gestionados-search" className="text-xs">Buscar (nombre, ID o IGG)</Label>
+                            <div className="relative">
+                                <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                                <Input id="gestionados-search" className="pl-8" placeholder="Escribe para filtrar…" value={f.search} onChange={(e) => setF((p) => ({ ...p, search: e.target.value }))} />
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="gestionados-area" className="text-xs">Área</Label>
+                            <Combobox
+                                id="gestionados-area"
+                                value={f.area_id ? String(f.area_id) : ''}
+                                onChange={(v) => apply({ area_id: v ? Number(v) : null })}
+                                placeholder="Todas"
+                                clearLabel="Todas"
+                                searchPlaceholder="Buscar área…"
+                                options={areas.map((a) => ({ value: String(a.id), label: a.name }))}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="gestionados-cargo" className="text-xs">Cargo</Label>
+                            <Combobox
+                                id="gestionados-cargo"
+                                value={f.job_position_id ? String(f.job_position_id) : ''}
+                                onChange={(v) => apply({ job_position_id: v ? Number(v) : null })}
+                                placeholder="Todos"
+                                clearLabel="Todos"
+                                searchPlaceholder="Buscar cargo…"
+                                options={cargos.map((c) => ({ value: String(c.id), label: c.name }))}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="gestionados-supervisor" className="text-xs">Jefe / Supervisor</Label>
+                            <Combobox
+                                id="gestionados-supervisor"
+                                value={f.supervisor ?? ''}
+                                onChange={(v) => apply({ supervisor: v || null })}
+                                placeholder="Todos"
+                                clearLabel="Todos"
+                                searchPlaceholder="Buscar agente…"
+                                options={[{ value: 'none', label: 'Sin supervisor asignado' }, ...supervisores.map((a) => ({ value: String(a.id), label: a.name }))]}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Estado</Label>
+                            <Select value={f.status ?? ALL} onValueChange={(v) => apply({ status: v === ALL ? null : v })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={ALL}>Todos</SelectItem>
+                                    <SelectItem value="activo">Activo</SelectItem>
+                                    <SelectItem value="inactivo">Inactivo</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex items-end">
+                            <Button variant="outline" onClick={reset} disabled={!hasFilters}><RotateCcw className="size-4" /> Limpiar filtros</Button>
+                        </div>
                     </div>
 
                     <Table>
