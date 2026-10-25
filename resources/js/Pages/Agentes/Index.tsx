@@ -1,6 +1,6 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
 
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/button';
@@ -8,6 +8,7 @@ import { Badge } from '@/Components/ui/badge';
 import { Input } from '@/Components/ui/input';
 import { Checkbox } from '@/Components/ui/checkbox';
 import { Label } from '@/Components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/Components/ui/dialog';
@@ -21,6 +22,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
+import { useListFilters } from '@/hooks/useListFilters';
 import { PageProps } from '@/types';
 
 interface Agent {
@@ -38,27 +40,29 @@ interface Paginated<T> {
     next_page_url: string | null;
 }
 
+interface Filters {
+    search: string;
+    role: string | null;
+    two_factor: string | null;
+    [key: string]: string | number | null;
+}
+
+const ALL = 'all';
+const EMPTY: Filters = { search: '', role: null, two_factor: null };
+
 type Props = PageProps<{
     agentes: Paginated<Agent>;
     roles: string[];
-    filters: { search: string };
+    filters: Filters;
     currentUserId: number;
     can: { create: boolean; update: boolean; delete: boolean };
 }>;
 
 export default function AgentesIndex({ agentes, roles, filters, currentUserId, can }: Props) {
-    const [search, setSearch] = useState(filters.search ?? '');
+    const { f, apply, setSearch, reset, hasFilters } = useListFilters('agentes.index', filters, EMPTY);
     const [formOpen, setFormOpen] = useState(false);
     const [editing, setEditing] = useState<Agent | null>(null);
     const [deleting, setDeleting] = useState<Agent | null>(null);
-
-    useEffect(() => {
-        const t = setTimeout(() => {
-            if (search === (filters.search ?? '')) return;
-            router.get(route('agentes.index'), { search }, { preserveState: true, replace: true });
-        }, 300);
-        return () => clearTimeout(t);
-    }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const form = useForm<{ name: string; email: string; password: string; roles: string[] }>({
         name: '', email: '', password: '', roles: [],
@@ -103,9 +107,38 @@ export default function AgentesIndex({ agentes, roles, filters, currentUserId, c
                     )}
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="relative max-w-sm">
-                        <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-                        <Input placeholder="Buscar por nombre o correo…" className="pl-8" value={search} onChange={(e) => setSearch(e.target.value)} />
+                    <div className="grid grid-cols-1 gap-3 rounded-lg border bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="agentes-search" className="text-xs">Buscar (nombre o correo)</Label>
+                            <div className="relative">
+                                <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                                <Input id="agentes-search" className="pl-8" placeholder="Escribe para filtrar…" value={f.search} onChange={(e) => setSearch(e.target.value)} />
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Rol de plataforma</Label>
+                            <Select value={f.role ?? ALL} onValueChange={(v) => apply({ role: v === ALL ? null : v })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={ALL}>Todos</SelectItem>
+                                    {roles.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Verificación en dos pasos</Label>
+                            <Select value={f.two_factor ?? ALL} onValueChange={(v) => apply({ two_factor: v === ALL ? null : v })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={ALL}>Todos</SelectItem>
+                                    <SelectItem value="activo">Activada</SelectItem>
+                                    <SelectItem value="inactivo">Sin activar</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex items-end">
+                            <Button variant="outline" onClick={reset} disabled={!hasFilters}><RotateCcw className="size-4" /> Limpiar filtros</Button>
+                        </div>
                     </div>
 
                     <Table>

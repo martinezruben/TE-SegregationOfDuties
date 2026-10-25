@@ -18,12 +18,27 @@ class ApplicationController extends Controller
     {
         $this->authorize('viewAny', Application::class);
 
-        $search = (string) $request->string('search');
+        $crit = (string) $request->string('criticality');
+        $status = (string) $request->string('status');
+        $filters = [
+            'search' => trim((string) $request->string('search')),
+            'criticality' => in_array($crit, array_column(CriticalityLevel::cases(), 'value'), true) ? $crit : null,
+            // id del owner, o "none" para aplicaciones sin owner.
+            'owner' => trim((string) $request->string('owner')) ?: null,
+            'status' => in_array($status, ['activo', 'inactivo'], true) ? $status : null,
+        ];
 
         $aplicaciones = Application::query()
             ->with('owner:id,name')
             ->withCount('roles')
-            ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
+            ->when($filters['search'] !== '', fn ($q) => $q->where(fn ($w) => $w
+                ->where('name', 'like', "%{$filters['search']}%")
+                ->orWhere('description', 'like', "%{$filters['search']}%")))
+            ->when($filters['criticality'], fn ($q, $v) => $q->where('criticality_level', $v))
+            ->when($filters['owner'], fn ($q, $v) => $v === 'none'
+                ? $q->whereNull('owner_id')
+                : $q->where('owner_id', (int) $v))
+            ->when($filters['status'], fn ($q, $v) => $q->where('is_active', $v === 'activo'))
             ->orderBy('name')
             ->paginate(10)
             ->withQueryString();
@@ -35,7 +50,7 @@ class ApplicationController extends Controller
                 fn (CriticalityLevel $c) => ['value' => $c->value, 'label' => $c->label()],
                 CriticalityLevel::cases(),
             ),
-            'filters' => ['search' => $search],
+            'filters' => $filters,
             'can' => [
                 'create' => Gate::allows('create', Application::class),
                 'update' => Gate::allows('update', new Application()),

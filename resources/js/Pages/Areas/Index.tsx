@@ -1,6 +1,6 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
 
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/button';
@@ -8,6 +8,7 @@ import { Badge } from '@/Components/ui/badge';
 import { Input } from '@/Components/ui/input';
 import { SwitchField } from '@/Components/app/SwitchField';
 import { Label } from '@/Components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import {
     Card,
     CardContent,
@@ -41,6 +42,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
+import { useListFilters } from '@/hooks/useListFilters';
 import { PageProps } from '@/types';
 
 interface Area {
@@ -59,27 +61,28 @@ interface Paginated<T> {
     next_page_url: string | null;
 }
 
+interface Filters {
+    search: string;
+    status: string | null;
+    [key: string]: string | number | null;
+}
+
+const ALL = 'all';
+const EMPTY: Filters = { search: '', status: null };
+
 type Props = PageProps<{
     areas: Paginated<Area>;
-    filters: { search: string };
+    filters: Filters;
     can: { create: boolean; update: boolean; delete: boolean };
 }>;
 
 export default function AreasIndex({ areas, filters, can }: Props) {
-    const [search, setSearch] = useState(filters.search ?? '');
+    const { f, apply, setSearch, reset, hasFilters } = useListFilters('areas.index', filters, EMPTY);
     const [formOpen, setFormOpen] = useState(false);
     const [editing, setEditing] = useState<Area | null>(null);
     const [deleting, setDeleting] = useState<Area | null>(null);
 
     // Búsqueda con debounce.
-    useEffect(() => {
-        const t = setTimeout(() => {
-            if (search === (filters.search ?? '')) return;
-            router.get(route('areas.index'), { search }, { preserveState: true, replace: true });
-        }, 300);
-        return () => clearTimeout(t);
-    }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
-
     const form = useForm({ name: '', code: '', is_active: true });
 
     const openCreate = () => {
@@ -134,14 +137,28 @@ export default function AreasIndex({ areas, filters, can }: Props) {
                     )}
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="relative max-w-sm">
-                        <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Buscar por nombre o código…"
-                            className="pl-8"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
+                    <div className="grid grid-cols-1 gap-3 rounded-lg border bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="areas-search" className="text-xs">Buscar (nombre o código)</Label>
+                            <div className="relative">
+                                <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                                <Input id="areas-search" className="pl-8" placeholder="Escribe para filtrar…" value={f.search} onChange={(e) => setSearch(e.target.value)} />
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Estado</Label>
+                            <Select value={f.status ?? ALL} onValueChange={(v) => apply({ status: v === ALL ? null : v })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={ALL}>Todos</SelectItem>
+                                    <SelectItem value="activo">Activo</SelectItem>
+                                    <SelectItem value="inactivo">Inactivo</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex items-end">
+                            <Button variant="outline" onClick={reset} disabled={!hasFilters}><RotateCcw className="size-4" /> Limpiar filtros</Button>
+                        </div>
                     </div>
 
                     <Table>

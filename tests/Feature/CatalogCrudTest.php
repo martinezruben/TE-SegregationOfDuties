@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Application;
 use App\Models\Area;
 use App\Models\JobPosition;
 use App\Models\ManagedUser;
@@ -158,5 +159,54 @@ class CatalogCrudTest extends TestCase
         $this->assertSame(1, $count('?status=inactivo'));
         // El texto y los demás filtros se combinan con AND (no se cuela el OR de la búsqueda).
         $this->assertSame(0, $count('?search=ana&area_id='.$fin->id));
+    }
+
+    public function test_areas_can_be_filtered(): void
+    {
+        $this->actingAsRole('Administrador');
+        Area::create(['code' => 'TI', 'name' => 'Tecnología', 'is_active' => true]);
+        Area::create(['code' => 'FIN', 'name' => 'Finanzas', 'is_active' => false]);
+
+        $count = fn (string $qs) => $this->get('/areas'.$qs)->viewData('page')['props']['areas']['total'];
+
+        $this->assertSame(2, $count(''));
+        $this->assertSame(1, $count('?search=fin'));
+        $this->assertSame(1, $count('?status=activo'));
+        $this->assertSame(0, $count('?search=fin&status=activo'));
+    }
+
+    public function test_applications_can_be_filtered(): void
+    {
+        $admin = $this->actingAsRole('Administrador');
+        Application::create(['name' => 'ERP', 'description' => 'Finanzas', 'criticality_level' => 'alta', 'owner_id' => $admin->id, 'is_active' => true]);
+        Application::create(['name' => 'CRM', 'criticality_level' => 'baja', 'is_active' => false]);
+
+        $count = fn (string $qs) => $this->get('/aplicaciones'.$qs)->viewData('page')['props']['aplicaciones']['total'];
+
+        $this->assertSame(2, $count(''));
+        $this->assertSame(1, $count('?search=finanzas'));
+        $this->assertSame(1, $count('?criticality=alta'));
+        $this->assertSame(1, $count('?owner='.$admin->id));
+        $this->assertSame(1, $count('?owner=none'));
+        $this->assertSame(1, $count('?status=inactivo'));
+        $this->assertSame(0, $count('?criticality=alta&status=inactivo'));
+    }
+
+    public function test_agents_can_be_filtered(): void
+    {
+        $admin = $this->actingAsRole('Administrador');
+        $other = User::factory()->create(['name' => 'Zoe Auditora', 'email' => 'zoe@example.com']);
+        $other->assignRole('Auditor');
+        $admin->forceFill(['two_factor_confirmed_at' => now()])->save();
+
+        $count = fn (string $qs) => $this->get('/agentes'.$qs)->viewData('page')['props']['agentes']['total'];
+
+        $this->assertSame(2, $count(''));
+        $this->assertSame(1, $count('?search=zoe@'));
+        $this->assertSame(1, $count('?role=Auditor'));
+        $this->assertSame(1, $count('?two_factor=activo'));
+        $this->assertSame(1, $count('?two_factor=inactivo'));
+        $this->assertSame(2, $count('?role=NoExiste')); // rol inválido se ignora
+        $this->assertSame(0, $count('?role=Auditor&two_factor=activo'));
     }
 }

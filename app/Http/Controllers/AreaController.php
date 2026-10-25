@@ -16,19 +16,24 @@ class AreaController extends Controller
     {
         $this->authorize('viewAny', Area::class);
 
-        $search = (string) $request->string('search');
+        $status = (string) $request->string('status');
+        $filters = [
+            'search' => trim((string) $request->string('search')),
+            'status' => in_array($status, ['activo', 'inactivo'], true) ? $status : null,
+        ];
 
         $areas = Area::query()
-            ->when($search !== '', fn ($q) => $q
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('code', 'like', "%{$search}%"))
+            ->when($filters['search'] !== '', fn ($q) => $q->where(fn ($w) => $w
+                ->where('name', 'like', "%{$filters['search']}%")
+                ->orWhere('code', 'like', "%{$filters['search']}%")))
+            ->when($filters['status'], fn ($q, $v) => $q->where('is_active', $v === 'activo'))
             ->orderBy('name')
             ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Areas/Index', [
             'areas' => $areas,
-            'filters' => ['search' => $search],
+            'filters' => $filters,
             'can' => [
                 'create' => Gate::allows('create', Area::class),
                 'update' => Gate::allows('update', new Area()),
