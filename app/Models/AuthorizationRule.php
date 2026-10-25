@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use OwenIt\Auditing\Contracts\Auditable;
 
 /**
@@ -11,15 +12,14 @@ use OwenIt\Auditing\Contracts\Auditable;
  *
  * Define quién autoriza según el disparador de la solicitud:
  *  - trigger_type: sod_risk | application | cargo_misalignment
- *  - authorizer_type: fixed (persona fija) | supervisor (jefe del gestionado)
+ *  - steps: una o varias autorizaciones en secuencia (persona fija o su supervisor)
  */
 class AuthorizationRule extends Model implements Auditable
 {
     use \OwenIt\Auditing\Auditable;
 
     protected $fillable = [
-        'name', 'trigger_type', 'risk_level', 'application_id',
-        'authorizer_type', 'authorizer_id', 'is_active',
+        'name', 'trigger_type', 'risk_level', 'application_id', 'is_active',
     ];
 
     protected $casts = [
@@ -31,8 +31,26 @@ class AuthorizationRule extends Model implements Auditable
         return $this->belongsTo(Application::class);
     }
 
-    public function authorizer(): BelongsTo
+    public function steps(): HasMany
     {
-        return $this->belongsTo(User::class, 'authorizer_id');
+        return $this->hasMany(AuthorizationRuleStep::class)->orderBy('step_order');
+    }
+
+    /**
+     * Reemplaza los pasos de la regla (en el orden recibido, desde 1).
+     *
+     * @param  list<array{authorizer_type:string, authorizer_id:?int}>  $steps
+     */
+    public function syncSteps(array $steps): void
+    {
+        $this->steps()->delete();
+
+        foreach (array_values($steps) as $i => $step) {
+            $this->steps()->create([
+                'step_order' => $i + 1,
+                'authorizer_type' => $step['authorizer_type'],
+                'authorizer_id' => $step['authorizer_type'] === 'supervisor' ? null : ($step['authorizer_id'] ?? null),
+            ]);
+        }
     }
 }

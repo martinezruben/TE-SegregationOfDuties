@@ -95,22 +95,17 @@ class DemoDataSeeder extends Seeder
         //  - Conflicto SoD de riesgo medio -> su supervisor (jefe)
         //  - Desalineación con el cargo     -> Gestor de Seguridad
         //  - Toda solicitud del ERP Finanzas-> owner de la aplicación
-        AuthorizationRule::create([
-            'name' => 'Riesgo alto → Seguridad', 'trigger_type' => 'sod_risk', 'risk_level' => 'alto',
-            'authorizer_type' => 'fixed', 'authorizer_id' => $seguridad?->id,
-        ]);
-        AuthorizationRule::create([
-            'name' => 'Riesgo medio → Supervisor', 'trigger_type' => 'sod_risk', 'risk_level' => 'medio',
-            'authorizer_type' => 'supervisor',
-        ]);
-        AuthorizationRule::create([
-            'name' => 'Desalineación de cargo → Seguridad', 'trigger_type' => 'cargo_misalignment',
-            'authorizer_type' => 'fixed', 'authorizer_id' => $seguridad?->id,
-        ]);
-        AuthorizationRule::create([
-            'name' => 'ERP Finanzas → Owner', 'trigger_type' => 'application', 'application_id' => $erp->id,
-            'authorizer_type' => 'fixed', 'authorizer_id' => $owner?->id,
-        ]);
+        $rule = AuthorizationRule::create(['name' => 'Riesgo alto → Seguridad', 'trigger_type' => 'sod_risk', 'risk_level' => 'alto']);
+        $rule->syncSteps([['authorizer_type' => 'fixed', 'authorizer_id' => $seguridad?->id]]);
+
+        $rule = AuthorizationRule::create(['name' => 'Riesgo medio → Supervisor', 'trigger_type' => 'sod_risk', 'risk_level' => 'medio']);
+        $rule->syncSteps([['authorizer_type' => 'supervisor', 'authorizer_id' => null]]);
+
+        $rule = AuthorizationRule::create(['name' => 'Desalineación de cargo → Seguridad', 'trigger_type' => 'cargo_misalignment']);
+        $rule->syncSteps([['authorizer_type' => 'fixed', 'authorizer_id' => $seguridad?->id]]);
+
+        $rule = AuthorizationRule::create(['name' => 'ERP Finanzas → Owner', 'trigger_type' => 'application', 'application_id' => $erp->id]);
+        $rule->syncSteps([['authorizer_type' => 'fixed', 'authorizer_id' => $owner?->id]]);
 
         // "Foto" inicial: María ya tiene Crear Proveedor
         $u1->roles()->attach($crearProveedor->id, [

@@ -31,7 +31,7 @@ class AuthorizationResolver
      */
     public function resolve(ManagedUser $user, Role $role, array $eval): array
     {
-        $rules = AuthorizationRule::where('is_active', true)->get();
+        $rules = AuthorizationRule::with('steps')->where('is_active', true)->get();
         $appId = $role->application_id;
         $supervisorId = $user->supervisor_id;
 
@@ -39,28 +39,33 @@ class AuthorizationResolver
         $groups = collect();
         $supervisorRequired = false;
 
+        // Cada regla aporta sus pasos en orden; los pasos de distintas reglas
+        // con el mismo autorizador se consolidan en uno (el orden es el de la
+        // primera aparición).
         $add = function (AuthorizationRule $rule, string $reason) use (&$groups, &$supervisorRequired, $supervisorId): void {
-            $isSupervisor = $rule->authorizer_type === 'supervisor';
-            $authId = $isSupervisor ? $supervisorId : $rule->authorizer_id;
+            foreach ($rule->steps as $step) {
+                $isSupervisor = $step->authorizer_type === 'supervisor';
+                $authId = $isSupervisor ? $supervisorId : $step->authorizer_id;
 
-            if ($isSupervisor) {
-                $supervisorRequired = true;
-                $key = 'supervisor'; // consolida a un solo paso del jefe
-            } else {
-                $key = 'user:'.($authId ?? 'null:'.$rule->id);
-            }
+                if ($isSupervisor) {
+                    $supervisorRequired = true;
+                    $key = 'supervisor'; // consolida a un solo paso del jefe
+                } else {
+                    $key = 'user:'.($authId ?? 'null:'.$step->id);
+                }
 
-            $existing = $groups->get($key);
-            if ($existing === null) {
-                $groups->put($key, [
-                    'key' => $key,
-                    'authorizer_type' => $isSupervisor ? 'supervisor' : 'fixed',
-                    'authorizer_id' => $authId,
-                    'reasons' => [$reason],
-                ]);
-            } elseif (! in_array($reason, $existing['reasons'], true)) {
-                $existing['reasons'][] = $reason;
-                $groups->put($key, $existing);
+                $existing = $groups->get($key);
+                if ($existing === null) {
+                    $groups->put($key, [
+                        'key' => $key,
+                        'authorizer_type' => $isSupervisor ? 'supervisor' : 'fixed',
+                        'authorizer_id' => $authId,
+                        'reasons' => [$reason],
+                    ]);
+                } elseif (! in_array($reason, $existing['reasons'], true)) {
+                    $existing['reasons'][] = $reason;
+                    $groups->put($key, $existing);
+                }
             }
         };
 
