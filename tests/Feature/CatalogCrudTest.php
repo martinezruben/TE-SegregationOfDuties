@@ -142,9 +142,10 @@ class CatalogCrudTest extends TestCase
         $ti = Area::create(['code' => 'TI', 'name' => 'TI']);
         $fin = Area::create(['code' => 'FIN', 'name' => 'Finanzas']);
         $cargo = JobPosition::create(['name' => 'Analista', 'is_active' => true]);
+        $otro = JobPosition::create(['name' => 'Contador', 'is_active' => true]);
 
         ManagedUser::create(['external_id' => 'E1', 'igg' => 'ig1', 'name' => 'Ana', 'area_id' => $ti->id, 'job_position_id' => $cargo->id, 'supervisor_id' => $admin->id, 'is_active' => true]);
-        ManagedUser::create(['external_id' => 'E2', 'igg' => 'ig2', 'name' => 'Beto', 'area_id' => $fin->id, 'is_active' => false]);
+        ManagedUser::create(['external_id' => 'E2', 'igg' => 'ig2', 'name' => 'Beto', 'area_id' => $fin->id, 'job_position_id' => $otro->id, 'is_active' => false]);
 
         $count = fn (string $qs) => $this->get('/gestionados'.$qs)->viewData('page')['props']['usuarios']['total'];
 
