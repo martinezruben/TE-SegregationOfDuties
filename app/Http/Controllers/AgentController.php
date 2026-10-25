@@ -21,13 +21,25 @@ class AgentController extends Controller
     {
         $this->authorize('viewAny', User::class);
 
-        $search = (string) $request->string('search');
+        $twoFactor = (string) $request->string('two_factor');
+        $filters = [
+            'search' => trim((string) $request->string('search')),
+            'role' => Role::where('name', (string) $request->string('role'))->value('name'),
+            'two_factor' => in_array($twoFactor, ['activo', 'inactivo'], true) ? $twoFactor : null,
+        ];
 
         $agentes = User::query()
             ->with('roles:id,name')
-            ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"))
+            ->when($filters['search'] !== '', fn ($q) => $q->where(fn ($w) => $w
+                ->where('name', 'like', "%{$filters['search']}%")
+                ->orWhere('email', 'like', "%{$filters['search']}%")))
+            ->when($filters['role'], fn ($q, $v) => $q->role($v))
+            ->when($filters['two_factor'], fn ($q, $v) => $v === 'activo'
+                ? $q->whereNotNull('two_factor_confirmed_at')
+                : $q->whereNull('two_factor_confirmed_at'))
             ->orderBy('name')
             ->paginate(10)
+            ->withQueryString()
             ->through(fn (User $u) => [
                 'id' => $u->id,
                 'name' => $u->name,
@@ -38,7 +50,7 @@ class AgentController extends Controller
         return Inertia::render('Agentes/Index', [
             'agentes' => $agentes,
             'roles' => Role::orderBy('name')->pluck('name'),
-            'filters' => ['search' => $search],
+            'filters' => $filters,
             'currentUserId' => $request->user()->id,
             'can' => [
                 'create' => Gate::allows('create', User::class),

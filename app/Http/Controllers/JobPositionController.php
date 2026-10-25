@@ -16,11 +16,23 @@ class JobPositionController extends Controller
     {
         $this->authorize('viewAny', JobPosition::class);
 
-        $search = (string) $request->string('search');
+        $type = (string) $request->string('type');
+        $status = (string) $request->string('status');
+        $filters = [
+            'search' => trim((string) $request->string('search')),
+            'type' => in_array($type, ['generico', 'especifico'], true) ? $type : null,
+            'generic_position_id' => $request->integer('generic_position_id') ?: null,
+            'status' => in_array($status, ['activo', 'inactivo'], true) ? $status : null,
+        ];
 
         $cargos = JobPosition::query()
             ->with('genericPosition:id,name')
-            ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
+            ->when($filters['search'] !== '', fn ($q) => $q->where(fn ($w) => $w
+                ->where('name', 'like', "%{$filters['search']}%")
+                ->orWhere('description', 'like', "%{$filters['search']}%")))
+            ->when($filters['type'], fn ($q, $v) => $q->where('is_generic', $v === 'generico'))
+            ->when($filters['generic_position_id'], fn ($q, $v) => $q->where('generic_position_id', $v))
+            ->when($filters['status'], fn ($q, $v) => $q->where('is_active', $v === 'activo'))
             ->orderBy('name')
             ->paginate(10)
             ->withQueryString();
@@ -30,7 +42,7 @@ class JobPositionController extends Controller
             'genericos' => JobPosition::where('is_generic', true)
                 ->orderBy('name')
                 ->get(['id', 'name']),
-            'filters' => ['search' => $search],
+            'filters' => $filters,
             'can' => [
                 'create' => Gate::allows('create', JobPosition::class),
                 'update' => Gate::allows('update', new JobPosition()),

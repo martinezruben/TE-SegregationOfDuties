@@ -1,6 +1,6 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { KeyRound, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { KeyRound, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
 
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/button';
@@ -23,6 +23,7 @@ import {
 import { Combobox } from '@/Components/app/Combobox';
 import { SwitchField } from '@/Components/app/SwitchField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
+import { useListFilters } from '@/hooks/useListFilters';
 import { PageProps } from '@/types';
 
 interface Owner {
@@ -50,11 +51,22 @@ interface Paginated<T> {
     next_page_url: string | null;
 }
 
+interface Filters {
+    search: string;
+    criticality: string | null;
+    owner: string | null;
+    status: string | null;
+    [key: string]: string | number | null;
+}
+
+const ALL = 'all';
+const EMPTY: Filters = { search: '', criticality: null, owner: null, status: null };
+
 type Props = PageProps<{
     aplicaciones: Paginated<App>;
     owners: Owner[];
     criticidades: { value: string; label: string }[];
-    filters: { search: string };
+    filters: Filters;
     can: { create: boolean; update: boolean; delete: boolean };
 }>;
 
@@ -64,18 +76,10 @@ const critVariant = (c: App['criticality_level']) =>
     c === 'alta' ? 'destructive' : c === 'media' ? 'warning' : 'success';
 
 export default function AplicacionesIndex({ aplicaciones, owners, criticidades, filters, can }: Props) {
-    const [search, setSearch] = useState(filters.search ?? '');
+    const { f, apply, setSearch, reset, hasFilters } = useListFilters('aplicaciones.index', filters, EMPTY);
     const [formOpen, setFormOpen] = useState(false);
     const [editing, setEditing] = useState<App | null>(null);
     const [deleting, setDeleting] = useState<App | null>(null);
-
-    useEffect(() => {
-        const t = setTimeout(() => {
-            if (search === (filters.search ?? '')) return;
-            router.get(route('aplicaciones.index'), { search }, { preserveState: true, replace: true });
-        }, 300);
-        return () => clearTimeout(t);
-    }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const form = useForm<{
         name: string;
@@ -144,14 +148,50 @@ export default function AplicacionesIndex({ aplicaciones, owners, criticidades, 
                     )}
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="relative max-w-sm">
-                        <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Buscar por nombre…"
-                            className="pl-8"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
+                    <div className="grid grid-cols-1 gap-3 rounded-lg border bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="apps-search" className="text-xs">Buscar (nombre o descripción)</Label>
+                            <div className="relative">
+                                <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                                <Input id="apps-search" className="pl-8" placeholder="Escribe para filtrar…" value={f.search} onChange={(e) => setSearch(e.target.value)} />
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Criticidad</Label>
+                            <Select value={f.criticality ?? ALL} onValueChange={(v) => apply({ criticality: v === ALL ? null : v })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={ALL}>Todas</SelectItem>
+                                    {criticidades.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="apps-owner" className="text-xs">Owner</Label>
+                            <Combobox
+                                id="apps-owner"
+                                value={f.owner ?? ''}
+                                onChange={(v) => apply({ owner: v || null })}
+                                placeholder="Todos"
+                                clearLabel="Todos"
+                                searchPlaceholder="Buscar agente…"
+                                options={[{ value: 'none', label: 'Sin owner asignado' }, ...owners.map((o) => ({ value: String(o.id), label: o.name }))]}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Estado</Label>
+                            <Select value={f.status ?? ALL} onValueChange={(v) => apply({ status: v === ALL ? null : v })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={ALL}>Todos</SelectItem>
+                                    <SelectItem value="activo">Activo</SelectItem>
+                                    <SelectItem value="inactivo">Inactivo</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex items-end">
+                            <Button variant="outline" onClick={reset} disabled={!hasFilters}><RotateCcw className="size-4" /> Limpiar filtros</Button>
+                        </div>
                     </div>
 
                     <Table>

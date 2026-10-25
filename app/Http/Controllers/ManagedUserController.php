@@ -19,14 +19,28 @@ class ManagedUserController extends Controller
     {
         $this->authorize('viewAny', ManagedUser::class);
 
-        $search = (string) $request->string('search');
+        $status = (string) $request->string('status');
+        $filters = [
+            'search' => trim((string) $request->string('search')),
+            'area_id' => $request->integer('area_id') ?: null,
+            'job_position_id' => $request->integer('job_position_id') ?: null,
+            // id de un supervisor, o "none" para quienes no tienen jefe asignado.
+            'supervisor' => trim((string) $request->string('supervisor')) ?: null,
+            'status' => in_array($status, ['activo', 'inactivo'], true) ? $status : null,
+        ];
 
         $usuarios = ManagedUser::query()
             ->with(['area:id,name', 'jobPosition:id,name', 'supervisor:id,name'])
-            ->when($search !== '', fn ($q) => $q
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('external_id', 'like', "%{$search}%")
-                ->orWhere('igg', 'like', "%{$search}%"))
+            ->when($filters['search'] !== '', fn ($q) => $q->where(fn ($w) => $w
+                ->where('name', 'like', "%{$filters['search']}%")
+                ->orWhere('external_id', 'like', "%{$filters['search']}%")
+                ->orWhere('igg', 'like', "%{$filters['search']}%")))
+            ->when($filters['area_id'], fn ($q, $v) => $q->where('area_id', $v))
+            ->when($filters['job_position_id'], fn ($q, $v) => $q->where('job_position_id', $v))
+            ->when($filters['supervisor'], fn ($q, $v) => $v === 'none'
+                ? $q->whereNull('supervisor_id')
+                : $q->where('supervisor_id', (int) $v))
+            ->when($filters['status'], fn ($q, $v) => $q->where('is_active', $v === 'activo'))
             ->orderBy('name')
             ->paginate(10)
             ->withQueryString();
@@ -36,7 +50,7 @@ class ManagedUserController extends Controller
             'areas' => Area::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'cargos' => JobPosition::orderBy('name')->get(['id', 'name']),
             'supervisores' => User::orderBy('name')->get(['id', 'name']),
-            'filters' => ['search' => $search],
+            'filters' => $filters,
             'can' => [
                 'create' => Gate::allows('create', ManagedUser::class),
                 'update' => Gate::allows('update', new ManagedUser()),

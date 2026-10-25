@@ -85,4 +85,26 @@ class SodMatrixTest extends TestCase
         $this->post('/matriz', ['role_a_id' => $a->id, 'role_b_id' => $b->id, 'risk_level' => 'alto'])
             ->assertForbidden();
     }
+
+    public function test_matrix_filters_by_search_application_risk_and_status(): void
+    {
+        $this->actingAsRole('Administrador');
+        [$a, $b] = $this->roles();
+        $crm = Application::create(['name' => 'CRM', 'criticality_level' => 'media']);
+        $c = $crm->roles()->create(['name' => 'Vendedor']);
+
+        SodConflict::create(['role_a_id' => $a->id, 'role_b_id' => $b->id, 'risk_level' => 'alto', 'description' => 'Fraude']);
+        SodConflict::create(['role_a_id' => $b->id, 'role_b_id' => $c->id, 'risk_level' => 'bajo', 'is_active' => false]);
+
+        $count = fn (string $qs) => $this->get('/matriz'.$qs)->viewData('page')['props']['conflictos']['total'];
+
+        $this->assertSame(2, $count(''));
+        $this->assertSame(1, $count('?search=Vendedor'));
+        $this->assertSame(1, $count('?search=fraude'));
+        $this->assertSame(2, $count('?application_id='.$a->application_id)); // ERP está en ambos pares
+        $this->assertSame(1, $count('?application_id='.$crm->id));
+        $this->assertSame(1, $count('?risk_level=bajo'));
+        $this->assertSame(1, $count('?status=inactivo'));
+        $this->assertSame(0, $count('?risk_level=alto&status=inactivo'));
+    }
 }

@@ -30,12 +30,11 @@ class AuthorizationRuleRequest extends FormRequest
                 Rule::requiredIf(fn () => $this->input('trigger_type') === 'application'),
                 'nullable', 'exists:applications,id',
             ],
-            'authorizer_type' => ['required', Rule::in(['fixed', 'supervisor'])],
-            // La persona fija es obligatoria cuando no se usa "su supervisor".
-            'authorizer_id' => [
-                Rule::requiredIf(fn () => $this->input('authorizer_type') === 'fixed'),
-                'nullable', 'exists:users,id',
-            ],
+            // Autorizaciones en secuencia: el orden del arreglo es el orden de ejecución.
+            'steps' => ['required', 'array', 'min:1', 'max:5'],
+            'steps.*.authorizer_type' => ['required', Rule::in(['fixed', 'supervisor'])],
+            // La persona fija es obligatoria cuando el paso no usa "su supervisor".
+            'steps.*.authorizer_id' => ['required_if:steps.*.authorizer_type,fixed', 'nullable', 'exists:users,id'],
             'is_active' => ['boolean'],
         ];
     }
@@ -48,7 +47,6 @@ class AuthorizationRuleRequest extends FormRequest
             'application_id' => $this->input('trigger_type') === 'application'
                 ? $this->input('application_id')
                 : $this->input('application_id'), // se permite como scope opcional
-            'authorizer_id' => $this->input('authorizer_type') === 'supervisor' ? null : $this->input('authorizer_id'),
         ]);
     }
 
@@ -62,8 +60,8 @@ class AuthorizationRuleRequest extends FormRequest
             'trigger_type' => 'disparador',
             'risk_level' => 'nivel de riesgo',
             'application_id' => 'aplicación',
-            'authorizer_type' => 'tipo de autorizador',
-            'authorizer_id' => 'autorizador',
+            'steps' => 'autorizaciones',
+            'steps.*.authorizer_id' => 'autorizador',
         ];
     }
 }

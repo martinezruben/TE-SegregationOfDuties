@@ -374,9 +374,11 @@ menus ──< menus (parent_id)                        (árbol jerárquico)
 * **CRUD de Usuarios Gestionados:** pantalla para crear la población gobernada con **ID, IGG, Nombre, Área (selector de áreas) y Cargo (selector de cargos)**, estado activo/inactivo. Importación masiva vía Excel además del alta manual.
 * **CRUD de Agentes/Operadores y RBAC:** ver §8.5 (usuarios con login, roles y permisos).
 * **Actualización de la "Foto":** Interfaz para sincronizar manualmente o importar vía Excel los roles que actualmente poseen los **usuarios gestionados**, con vista previa y validación antes de confirmar.
+* **Filtros en listados:** *Cargos* filtra por texto (nombre/descripción), tipo (genérico/específico), cargo genérico y estado. *Usuarios gestionados* filtra por texto (nombre/ID/IGG), área, cargo, supervisor (incluye «sin supervisor asignado») y estado. *Áreas*: texto (nombre/código) y estado. *Aplicaciones*: texto, criticidad, owner (incluye «sin owner») y estado. *Agentes*: texto (nombre/correo), rol de plataforma y verificación en dos pasos. Los filtros viajan en la URL y se combinan entre sí.
 
 ### 8.2 Módulo Gestor de Reglas (Matriz SoD y Cargos)
 * **Matriz SoD:** pantalla para definir conflictos cruzados entre roles (y opciones). Selección de Rol A y Rol B mediante menús desplegables dependientes (aplicación → rol) y nivel de riesgo. Previene duplicados invertidos y auto-conflicto.
+  * **Filtros** (paginado de 15): búsqueda por rol, aplicación o razón; aplicación (en cualquiera de los dos roles); riesgo; y estado. La búsqueda de texto se aplica sola al escribir.
 * **Reglas de Cargo ↔ Rol:** pantalla para asociar, para un cargo (específico o **genérico**), qué roles son **permitidos** y cuáles **no permitidos** (`rule_type`). Estas reglas alimentan la validación del simulador y del motor de autorizaciones.
 * Definir reglas a nivel de **cargo genérico** hace que apliquen a todos los cargos específicos equivalentes, evitando duplicar configuración.
 
@@ -455,11 +457,13 @@ Además del árbol por defecto (§8.4.2), el sistema incluye una **matriz de aut
   * `application` — por **aplicación** (toda solicitud de esa app requiere ese autorizador; anula la auto-aprobación).
   * `cargo_misalignment` — por **desalineación con el cargo** (cuando el cargo no permite el rol).
 * **Alcance opcional:** una regla `sod_risk` o `cargo_misalignment` puede limitarse a una `application_id` concreta (o aplicar a todas).
-* **Autorizador** (`authorizer_type`):
+* **Autorizaciones en secuencia** (`authorization_rule_steps`, 1 a 5 por regla, ordenadas por `step_order`). Cada paso define su autorizador (`authorizer_type`):
   * `fixed` — una **persona fija** (agente).
   * `supervisor` — **su supervisor**: el **jefe** del usuario gestionado (`managed_users.supervisor_id`, §7.1).
+  Los pasos se aprueban uno tras otro en el orden configurado (p. ej. primero el jefe y luego Seguridad); un rechazo termina la solicitud.
+* **Filtros de la pantalla:** nombre, disparador, riesgo, aplicación, autorizador (en cualquier paso, o «su supervisor») y estado; con paginación.
 
-**Consolidación:** al armar el flujo, todos los disparadores que resuelvan al **mismo autorizador** se **agrupan en un solo paso** (con la lista de motivos que cubre). No se autoriza conflicto por conflicto: **una autorización general por autorizador basta** para todos sus motivos en esa solicitud.
+**Consolidación:** al armar el flujo (los pasos de cada regla conservan su orden; el orden global es el de primera aparición), todos los disparadores que resuelvan al **mismo autorizador** se **agrupan en un solo paso** (con la lista de motivos que cubre). No se autoriza conflicto por conflicto: **una autorización general por autorizador basta** para todos sus motivos en esa solicitud.
 
 **Supervisor sin asignar:** si una regla exige "su supervisor" y el usuario gestionado no tiene jefe, el **Simulador lo advierte** (para asignarlo antes de solicitar) y, si aun así se crea la solicitud, el paso se **deriva al Gestor de Seguridad** como respaldo y se marca `supervisor_missing` en el detalle.
 
